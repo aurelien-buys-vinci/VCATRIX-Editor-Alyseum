@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,37 +9,38 @@
 <body>
 
     <header id="setup-header">
-        <h1>Configuration MIDI VCATRIX</h1>
+        <h1>VCATRIX MIDI Setup</h1>
         <div id="midi-setup">
             <div class="port-select">
-                <label for="midi-in">MIDI IN :</label>
-                <select id="midi-in"><option value="">Sélectionner...</option></select>
+                <label for="midi-in">MIDI IN:</label>
+                <select id="midi-in"><option value="">Select...</option></select>
             </div>
             <div class="port-select">
-                <label for="midi-out">MIDI OUT :</label>
-                <select id="midi-out"><option value="">Sélectionner...</option></select>
+                <label for="midi-out">MIDI OUT:</label>
+                <select id="midi-out"><option value="">Select...</option></select>
             </div>
-            <button id="btn-connect" disabled>Connecter</button>
+            <button id="btn-connect" disabled>Connect</button>
         </div>
     </header>
 
     <main id="app-container" class="hidden">
         
         <section id="fader-section">
-            <div id="matrix-container"></div>
+            <div id="matrix-container">
+                </div>
         </section>
 
         <aside id="sidebar">
-            <h2>Contrôles</h2>
+            <h2>Controls</h2>
             
             <div class="sidebar-group">
-                <button id="btn-monitor">Activer Monitoring (10Hz)</button>
+                <button id="btn-monitor">Enable Monitoring (10Hz)</button>
             </div>
 
             <div class="sidebar-group">
-                <h3>Mode Groupe (Max 8)</h3>
-                <button id="btn-multi-select" class="btn-secondary">Sélection Multiple : OFF</button>
-                <button id="btn-clear-selection" class="btn-secondary hidden">Vider la sélection</button>
+                <h3>Group Mode (Max 8)</h3>
+                <button id="btn-multi-select" class="btn-secondary">Multi-Select: OFF</button>
+                <button id="btn-clear-selection" class="btn-secondary hidden">Clear Selection</button>
             </div>
 
             <div class="sidebar-group">

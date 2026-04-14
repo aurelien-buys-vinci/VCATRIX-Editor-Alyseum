@@ -34,11 +34,13 @@ body {
 }
 
 #fader-section {
-    flex: 3; /* Prend 3/4 de la largeur */
+    flex: 3;
+    display: flex;
+    justify-content: center;
 }
 
 #sidebar {
-    flex: 1; /* Prend 1/4 de la largeur */
+    flex: 1;
     background-color: #2a2a2a;
     border: 1px solid #444;
     padding: 20px;
@@ -62,92 +64,10 @@ button {
     width: 100%;
 }
 
-button:hover:not(:disabled) {
-    background-color: #cc0000;
-}
-
-button:disabled {
-    background-color: #666;
-    border-color: #555;
-    cursor: not-allowed;
-}
-
-.btn-secondary {
-    background-color: #555;
-}
-
-.btn-secondary:hover:not(:disabled) {
-    background-color: #777;
-}
-
-select {
-    padding: 8px;
-    background-color: #555;
-    color: white;
-    border: 1px solid #777;
-    border-radius: 4px;
-}
-
-.hidden {
-    display: none !important;
-}
-
-/* --- Groupes de la Sidebar --- */
-.sidebar-group {
-    border-top: 1px solid #555;
-    padding-top: 15px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.sidebar-group h2, .sidebar-group h3 {
-    margin: 0;
-    text-align: center;
-    color: #e0e0e0;
-}
-
-.sidebar-group h3 {
-    font-size: 14px;
-    color: #bbb;
-}
-
-.preset-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 5px;
-}
-
-.preset-grid button {
-    padding: 8px 0;
-    font-size: 14px;
-    background-color: #ff0000;
-}
-
-/* --- La matrice --- */
-#matrix-container {
-    display: grid;
-    grid-template-columns: repeat(8, auto); 
-    gap: 5px;
-    justify-content: center;
-}
-
-.fader-container {
-    border: 1px solid #666;
-    background-color: #222;
-    padding: 5px;
-    text-align: center;
-}
-
-.fader-label {
-    font-size: 11px;
-    margin-bottom: 5px;
-    color: #aaa;
-}
-
-canvas {
-    cursor: pointer;
-}
+button:hover:not(:disabled) { background-color: #cc0000; }
+button:disabled { background-color: #666; border-color: #555; cursor: not-allowed; }
+.btn-secondary { background-color: #555; }
+.btn-secondary:hover:not(:disabled) { background-color: #777; }
 
 /* --- Mode Sélection Multiple --- */
 #btn-multi-select.active {
@@ -160,3 +80,67 @@ canvas {
     border-color: #00ff00;
     background-color: #1a331a;
 }
+
+select {
+    padding: 8px;
+    background-color: #555;
+    color: white;
+    border: 1px solid #777;
+    border-radius: 4px;
+}
+
+.hidden { display: none !important; }
+
+/* --- Groupes de la Sidebar --- */
+.sidebar-group {
+    border-top: 1px solid #555;
+    padding-top: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sidebar-group h2, .sidebar-group h3 { margin: 0; text-align: center; color: #e0e0e0; }
+.sidebar-group h3 { font-size: 14px; color: #bbb; }
+
+.preset-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+}
+
+.preset-grid button { padding: 8px 0; font-size: 14px; background-color: #ff0000; }
+
+/* --- La matrice compacte (9x9) --- */
+#matrix-container {
+    display: grid;
+    /* Colonne 1 : 40px pour l'axe IN. Colonnes 2 à 9 : 91px pour les faders */
+    grid-template-columns: 40px repeat(8, 91px); 
+    /* Ligne 1 : 30px pour l'axe OUT. Lignes 2 à 9 : 91px pour les faders */
+    grid-template-rows: 30px repeat(8, 91px);
+    gap: 0; /* PLUS D'ESPACEMENT */
+}
+
+.axis-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    color: #ccc;
+    background-color: #333;
+}
+
+.axis-label.top { border-bottom: 2px solid #555; }
+.axis-label.left { border-right: 2px solid #555; }
+
+.fader-container {
+    border: 1px solid #444; /* Légère bordure pour distinguer les cellules */
+    background-color: #222;
+    padding: 0; /* PLUS DE MARGE INTERNE */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+canvas { cursor: pointer; }
