@@ -300,8 +300,10 @@ function setupCanvasInteraction(canvas, inIdx, outIdx) {
                 return { address: v.inIdx + (8 * v.outIdx), value: currentDraggedValue };
             });
             sendUpdateVCAs(updates);
+            sendDisplayRequest();
         } else {
             sendUpdateVCAs([{ address: inIdx + (8 * outIdx), value: currentDraggedValue }]);
+            sendDisplayRequest();
         }
     };
 
