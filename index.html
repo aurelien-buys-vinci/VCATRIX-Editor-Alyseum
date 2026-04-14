@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VCATRIX Editor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header id="setup-header">
+        <h1>Configuration MIDI VCATRIX</h1>
+        <div id="midi-setup">
+            <div class="port-select">
+                <label for="midi-in">MIDI IN :</label>
+                <select id="midi-in"><option value="">Sélectionner...</option></select>
+            </div>
+            <div class="port-select">
+                <label for="midi-out">MIDI OUT :</label>
+                <select id="midi-out"><option value="">Sélectionner...</option></select>
+            </div>
+            <button id="btn-connect" disabled>Connecter</button>
+        </div>
+    </header>
+
+    <main id="app-container" class="hidden">
+        
+        <section id="fader-section">
+            <div id="matrix-container"></div>
+        </section>
+
+        <aside id="sidebar">
+            <h2>Contrôles</h2>
+            
+            <div class="sidebar-group">
+                <button id="btn-monitor">Activer Monitoring (10Hz)</button>
+            </div>
+
+            <div class="sidebar-group">
+                <h3>Mode Groupe (Max 8)</h3>
+                <button id="btn-multi-select" class="btn-secondary">Sélection Multiple : OFF</button>
+                <button id="btn-clear-selection" class="btn-secondary hidden">Vider la sélection</button>
+            </div>
+
+            <div class="sidebar-group">
+                <h3>Set Preset VCATRIX</h3>
+                <div class="preset-grid">
+                    <button class="btn-preset" data-preset="0">1</button>
+                    <button class="btn-preset" data-preset="1">2</button>
+                    <button class="btn-preset" data-preset="2">3</button>
+                    <button class="btn-preset" data-preset="3">4</button>
+                    <button class="btn-preset" data-preset="4">5</button>
+                    <button class="btn-preset" data-preset="5">6</button>
+                    <button class="btn-preset" data-preset="6">7</button>
+                    <button class="btn-preset" data-preset="7">8</button>
+                    <button class="btn-preset" data-preset="8">9</button>
+                    <button class="btn-preset" data-preset="9">10</button>
+                    <button class="btn-preset" data-preset="10">11</button>
+                    <button class="btn-preset" data-preset="11">12</button>
+                    <button class="btn-preset" data-preset="12">13</button>
+                    <button class="btn-preset" data-preset="13">14</button>
+                    <button class="btn-preset" data-preset="14">15</button>
+                    <button class="btn-preset" data-preset="15">16</button>
+                </div>
+            </div>
+
+            <div class="sidebar-group">
+                <button id="btn-clear">Clear All VCA</button>
+            </div>
+
+            <div class="sidebar-group">
+                <h3>Bulk Dump</h3>
+                <button class="btn-secondary" id="btn-dump-rx">Receive (Save)</button>
+                <button class="btn-secondary" id="btn-dump-tx">Transmit (Load)</button>
+            </div>
+        </aside>
+
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>

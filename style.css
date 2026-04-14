@@ -1,0 +1,162 @@
+body {
+    margin: 0;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+    background-color: #3d3d3d;
+    color: #e0e0e0;
+}
+
+/* --- Header Configuration --- */
+#setup-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 50px;
+}
+
+#midi-setup {
+    display: flex;
+    gap: 20px;
+    margin-top: 15px;
+    align-items: center;
+    background-color: #2a2a2a;
+    padding: 30px;
+    border-radius: 8px;
+    border: 1px solid #444;
+}
+
+/* --- Layout Principal --- */
+#app-container {
+    display: flex;
+    gap: 30px;
+    max-width: 1300px;
+    margin: 0 auto;
+}
+
+#fader-section {
+    flex: 3; /* Prend 3/4 de la largeur */
+}
+
+#sidebar {
+    flex: 1; /* Prend 1/4 de la largeur */
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+    padding: 20px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    height: fit-content;
+}
+
+/* --- Boutons et Selects --- */
+button {
+    background-color: #ff0000;
+    color: white;
+    border: 1px solid #e0e0e0;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s;
+    width: 100%;
+}
+
+button:hover:not(:disabled) {
+    background-color: #cc0000;
+}
+
+button:disabled {
+    background-color: #666;
+    border-color: #555;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background-color: #555;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background-color: #777;
+}
+
+select {
+    padding: 8px;
+    background-color: #555;
+    color: white;
+    border: 1px solid #777;
+    border-radius: 4px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* --- Groupes de la Sidebar --- */
+.sidebar-group {
+    border-top: 1px solid #555;
+    padding-top: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sidebar-group h2, .sidebar-group h3 {
+    margin: 0;
+    text-align: center;
+    color: #e0e0e0;
+}
+
+.sidebar-group h3 {
+    font-size: 14px;
+    color: #bbb;
+}
+
+.preset-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+}
+
+.preset-grid button {
+    padding: 8px 0;
+    font-size: 14px;
+    background-color: #ff0000;
+}
+
+/* --- La matrice --- */
+#matrix-container {
+    display: grid;
+    grid-template-columns: repeat(8, auto); 
+    gap: 5px;
+    justify-content: center;
+}
+
+.fader-container {
+    border: 1px solid #666;
+    background-color: #222;
+    padding: 5px;
+    text-align: center;
+}
+
+.fader-label {
+    font-size: 11px;
+    margin-bottom: 5px;
+    color: #aaa;
+}
+
+canvas {
+    cursor: pointer;
+}
+
+/* --- Mode Sélection Multiple --- */
+#btn-multi-select.active {
+    background-color: #00aa00;
+    color: white;
+    border-color: #00ff00;
+}
+
+.fader-container.selected {
+    border-color: #00ff00;
+    background-color: #1a331a;
+}
