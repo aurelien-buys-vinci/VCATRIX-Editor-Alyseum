@@ -6,7 +6,6 @@ body {
     color: #e0e0e0;
 }
 
-/* --- Header Configuration --- */
 #setup-header {
     display: flex;
     flex-direction: column;
@@ -25,7 +24,6 @@ body {
     border: 1px solid #444;
 }
 
-/* --- Layout Principal --- */
 #app-container {
     display: flex;
     gap: 30px;
@@ -51,7 +49,6 @@ body {
     height: fit-content;
 }
 
-/* --- Boutons et Selects --- */
 button {
     background-color: #ff0000;
     color: white;
@@ -69,17 +66,8 @@ button:disabled { background-color: #666; border-color: #555; cursor: not-allowe
 .btn-secondary { background-color: #555; }
 .btn-secondary:hover:not(:disabled) { background-color: #777; }
 
-/* --- Mode Sélection Multiple --- */
-#btn-multi-select.active {
-    background-color: #00aa00;
-    color: white;
-    border-color: #00ff00;
-}
-
-.fader-container.selected {
-    border-color: #00ff00;
-    background-color: #1a331a;
-}
+#btn-multi-select.active { background-color: #00aa00; border-color: #00ff00; }
+.fader-container.selected { border-color: #00ff00; background-color: #1a331a; }
 
 select {
     padding: 8px;
@@ -91,7 +79,6 @@ select {
 
 .hidden { display: none !important; }
 
-/* --- Groupes de la Sidebar --- */
 .sidebar-group {
     border-top: 1px solid #555;
     padding-top: 15px;
@@ -108,17 +95,13 @@ select {
     grid-template-columns: repeat(4, 1fr);
     gap: 5px;
 }
-
 .preset-grid button { padding: 8px 0; font-size: 14px; background-color: #ff0000; }
 
-/* --- La matrice compacte (9x9) --- */
 #matrix-container {
     display: grid;
-    /* Colonne 1 : 40px pour l'axe IN. Colonnes 2 à 9 : 91px pour les faders */
-    grid-template-columns: 40px repeat(8, 91px); 
-    /* Ligne 1 : 30px pour l'axe OUT. Lignes 2 à 9 : 91px pour les faders */
-    grid-template-rows: 30px repeat(8, 91px);
-    gap: 0; /* PLUS D'ESPACEMENT */
+    grid-template-columns: 40px repeat(8, 101px); 
+    grid-template-rows: 30px repeat(8, 101px);
+    gap: 0;
 }
 
 .axis-label {
@@ -130,14 +113,13 @@ select {
     color: #ccc;
     background-color: #333;
 }
-
 .axis-label.top { border-bottom: 2px solid #555; }
 .axis-label.left { border-right: 2px solid #555; }
 
 .fader-container {
-    border: 1px solid #444; /* Légère bordure pour distinguer les cellules */
+    border: 1px solid #444;
     background-color: #222;
-    padding: 0; /* PLUS DE MARGE INTERNE */
+    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
