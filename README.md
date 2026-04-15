@@ -27,7 +27,7 @@ VCATRIX Editor is a modern, intuitive web interface designed for remote control 
 1. Download the three core files: `index.html`, `style.css`, and `script.js`.
 2. Place them together in the same folder.
 3. Open `index.html` in your supported web browser.
-4. Select your MIDI In and MIDI Out ports from the dropdown menus and click Connect, or click DEMO to explore offline.
+4. Select your MIDI In and MIDI Out ports from the dropdown menus and click Connect, or click Demo to explore offline.
 
 ## MIDI Technical Details
 
@@ -41,14 +41,6 @@ The editor communicates using System Exclusive (SysEx) messages, utilizing the A
 - `04`: Update VCA value for a single VCA or a group.
 - `05`: Dump request to receive data to the computer.
 - `06`: Dump transmit to load data to the hardware.
-
-## User Interface
-
-The interface was built to respect the original user manual v1.5 while introducing ergonomic improvements:
-
-- Dark theme tailored for studio environments.
-- Aligned sidebar matching the matrix height for a clean hardware-like look.
-- Developer signature placed discreetly on the setup screen.
 
 ## Credits
 
