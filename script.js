@@ -309,7 +309,7 @@ function drawFader(canvasId, value) {
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 14px Arial'; 
     ctx.textBaseline = 'middle';  
-    ctx.fillText(value, 8, size / 2); 
+    ctx.fillText(value, size / 4, size / 4); 
 }
 
 // Handle mouse events on canvas to adjust VCA values
@@ -391,7 +391,7 @@ function resetAllColorsToGreen() {
 
 
 // ==========================================
-// 5. SIDEBAR EVENT LISTENERS
+// 5. SIDEBAR EVENT LISTENERS & MODALS
 // ==========================================
 
 // Toggle Group Mode
@@ -437,19 +437,14 @@ document.getElementById('btn-monitor').addEventListener('click', (e) => {
 // Load specific hardware preset and reset local edit states
 document.querySelectorAll('.btn-preset').forEach(btn => {
     btn.addEventListener('click', (e) => {
-        // Remove 'active' class from all buttons, then apply to the clicked one
         document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
-        
-        // Revert all modified faders to green since we are loading a preset
         resetAllColorsToGreen();
 
-        // Transmit command
         if (!midiOutPort) return;
         const presetNum = parseInt(e.target.getAttribute('data-preset'), 10);
         sendSetPreset(presetNum);
         
-        // Request values shortly after loading preset to refresh UI
         setTimeout(sendDisplayRequest, 50);
     });
 });
@@ -459,12 +454,32 @@ document.getElementById('btn-dump-rx').addEventListener('click', () => {
     sendDumpRequest();
 });
 
+// Generate and download a JSON file containing the Bulk Dump data
+function downloadBulkDumpFile(bulkData) {
+    const blob = new Blob([JSON.stringify(bulkData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const now = new Date();
+    const formattedDate = `${String(now.getDate()).padStart(2, '0')}_${String(now.getMonth() + 1).padStart(2, '0')}_${now.getFullYear()}`;
+    a.href = url;
+    a.download = `VCATRIX_BULK_${formattedDate}.vca`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// --- TRANSMIT MODAL LOGIC ---
+
+// Temporary storage for file data before user confirmation
+let pendingBulkData = null;
+
 // Open file selector to load dump file
 document.getElementById('btn-dump-tx').addEventListener('click', () => {
     document.getElementById('file-upload').click();
 });
 
-// Read selected dump file and transmit data to hardware
+// Intercept file loading, store data, and show Modal
 document.getElementById('file-upload').addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -474,8 +489,10 @@ document.getElementById('file-upload').addEventListener('change', (e) => {
         try {
             const bulkData = JSON.parse(event.target.result);
             if (bulkData && typeof bulkData === 'object' && bulkData[0]) {
-                sendBulkDumpTransmit(bulkData);
-                alert("Bulk Dump (16 Presets) Transmitted Successfully!");
+                // Store data and show modal instead of sending immediately
+                pendingBulkData = bulkData;
+                document.getElementById('transmit-select').value = "all"; // Reset to default
+                document.getElementById('transmit-modal').classList.remove('hidden');
             } else {
                 alert("Invalid File Format.");
             }
@@ -484,19 +501,68 @@ document.getElementById('file-upload').addEventListener('change', (e) => {
         }
     };
     reader.readAsText(file);
+    
+    // Clear the input value so the exact same file can trigger 'change' again if needed
+    e.target.value = '';
 });
 
-// Generate and download a JSON file containing the Bulk Dump data
-function downloadBulkDumpFile(bulkData) {
-    const blob = new Blob([JSON.stringify(bulkData, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `VCATRIX_BULK_16_Presets.vca`; 
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+// Modal Cancel Button: Hide modal and clear pending data
+document.getElementById('btn-transmit-cancel').addEventListener('click', () => {
+    document.getElementById('transmit-modal').classList.add('hidden');
+    pendingBulkData = null;
+});
+
+// Modal Confirm Button: Send All or specific preset based on dropdown choice
+document.getElementById('btn-transmit-confirm').addEventListener('click', () => {
+    if (!pendingBulkData) return;
+    
+    const selection = document.getElementById('transmit-select').value;
+    
+    if (selection === 'all') {
+        // Send all 16 presets
+        sendBulkDumpTransmit(pendingBulkData);
+        alert("Bulk Dump (All 16 Presets) Transmitted Successfully!");
+    } else {
+        // Send only the selected preset
+        const presetIndex = parseInt(selection, 10);
+        if (pendingBulkData[presetIndex]) {
+            // Create a temporary object containing ONLY the selected preset
+            const singlePresetData = { [presetIndex]: pendingBulkData[presetIndex] };
+            sendBulkDumpTransmit(singlePresetData);
+            alert(`Preset ${presetIndex + 1} Transmitted Successfully!`);
+        } else {
+            alert("Error: This preset is empty or missing from the file.");
+        }
+    }
+    
+    // Hide modal and cleanup
+    document.getElementById('transmit-modal').classList.add('hidden');
+    pendingBulkData = null;
+});
+
+function testerReceptionDump() {
+    console.log("Simulation : Réception du Bulk Dump (16 presets)...");
+    
+    // La boucle des presets va explicitement de 0x00 à 0x0F (0 à 15)
+    for (let p = 0x00; p <= 0x0F; p++) {
+        const fakeMessage = [0xf0, 0x00, 0x20, 0x09, 0x0a, 0x11, p];
+        
+        // 64 valeurs par preset (strictement entre 0x00 et 0x7F)
+        for (let i = 0; i < 64; i++) {
+            // On crée un motif qui change en fonction du preset 'p'
+            // Le modulo 128 (% 128) garantit que la valeur ne dépassera jamais 127 (7F)
+            let fakeValue = (i * 2 + (p * 5)) % 128; 
+            fakeMessage.push(fakeValue);
+        }
+        
+        fakeMessage.push(0xf7); // Fin du message SysEx
+        
+        // On simule l'arrivée successive des 16 messages avec 10ms d'écart
+        setTimeout(() => {
+            handleIncomingMidi({ data: fakeMessage });
+            console.log(`Simulation : Preset ${p} reçu.`);
+        }, p * 10);
+    }
 }
 
 // --- INITIALIZE APPLICATION ---
