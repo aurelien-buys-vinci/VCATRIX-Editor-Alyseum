@@ -9,20 +9,26 @@
 <body>
 
     <header id="setup-header">
-        <h1>VCATRIX MIDI Setup</h1>
+        <h2><em>ALYSEUM</em> - VCATRIX editor <span class="revision">R.01</span></h2>
+        <p class="subtitle">Two MIDI ports (In and Out) are required; otherwise, use Demo mode</p>
+        
         <div id="midi-setup">
             <div class="port-select">
-                <label for="midi-in">MIDI IN:</label>
-                <select id="midi-in"><option value="">Select...</option></select>
+                <label for="midi-in">MIDI In port</label>
+                <select id="midi-in"><option value="">Please Select</option></select>
             </div>
             <div class="port-select">
-                <label for="midi-out">MIDI OUT:</label>
-                <select id="midi-out"><option value="">Select...</option></select>
-            </div>
-            <div>
-                <button id="btn-connect" disabled>Connect</button>
+                <label for="midi-out">MIDI Out port</label>
+                <select id="midi-out"><option value="">Please Select</option></select>
             </div>
         </div>
+        
+        <div class="header-buttons">
+            <button id="btn-demo" class="btn-demo">DEMO</button>
+            <button id="btn-connect" class="btn-primary" disabled>Connect</button>
+        </div>
+
+        <span class="signature">Buys Aurélien</span>
     </header>
 
     <main id="app-container" class="hidden">
@@ -33,20 +39,18 @@
         </section>
 
         <aside id="sidebar">
-            <h2>Controls</h2>
-            
-            <div class="sidebar-group">
-                <button id="btn-monitor">Enable Monitoring (10Hz)</button>
+            <div class="sidebar-group" style="border-top: none; padding-top: 0;">
+                <button id="btn-monitor">Enable monitoring (10Hz)</button>
             </div>
 
             <div class="sidebar-group">
-                <h3>Group Mode (Max 8)</h3>
-                <button id="btn-multi-select" class="btn-secondary">Multi-Select: OFF</button>
-                <button id="btn-clear-selection" class="btn-secondary hidden">Clear Selection</button>
+                <h3>Group mode (max 8)</h3>
+                <button id="btn-multi-select" class="btn-secondary">Multi-select: OFF</button>
+                <button id="btn-clear-selection" class="btn-secondary hidden">Clear selection</button>
             </div>
 
             <div class="sidebar-group">
-                <h3>Set Preset VCATRIX</h3>
+                <h3>Set preset VCATRIX</h3>
                 <div class="preset-grid">
                     <button class="btn-preset" data-preset="0">1</button>
                     <button class="btn-preset" data-preset="1">2</button>
@@ -68,15 +72,16 @@
             </div>
 
             <div class="sidebar-group">
-                <button id="btn-clear">Clear All VCA</button>
+                <button id="btn-clear">Clear all VCA</button>
             </div>
 
             <div class="sidebar-group">
-                <h3>Bulk Dump</h3>
-                <button class="btn-secondary" id="btn-dump-rx">Dump Receive (Save)</button>
-                <button class="btn-secondary" id="btn-dump-tx">Dump Transmit (Load)</button>
+                <h3>Bulk dump</h3>
+                <button class="btn-secondary" id="btn-dump-rx">Receive (save to Mac)</button>
+                <button class="btn-secondary" id="btn-dump-tx">Transmit (load file)</button>
                 <input type="file" id="file-upload" class="hidden" accept=".vca,.json">
             </div>
+
         </aside>
 
     </main>

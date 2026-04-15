@@ -1,3 +1,4 @@
+/* Base Styles */
 body {
     margin: 0;
     padding: 20px;
@@ -6,37 +7,137 @@ body {
     color: #e0e0e0;
 }
 
+/* --- Startup Screen Configuration --- */
 #setup-header {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-top: 50px;
+    margin: 80px auto; 
+    padding: 40px;
+    background-color: #2a2a2a; 
+    border: 1px solid #444;
+    border-radius: 15px;
+    max-width: 700px; 
+    position: relative; 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    text-align: center;
+}
+
+#setup-header h2 {
+    margin-top: 0;
+    font-size: 24px;
+    color: #e0e0e0;
+}
+
+#setup-header .revision {
+    font-size: 14px;
+    font-weight: normal;
+    color: #aaa;
+}
+
+.subtitle {
+    font-size: 14px;
+    margin-bottom: 30px;
+    color: #ccc;
 }
 
 #midi-setup {
     display: flex;
-    gap: 20px;
-    margin-top: 15px;
-    align-items: center;
-    background-color: #2a2a2a;
-    padding: 30px;
-    border-radius: 8px;
-    border: 1px solid #444;
+    gap: 40px; 
+    margin-bottom: 30px;
 }
 
+.port-select {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.port-select label {
+    font-size: 14px;
+    color: #e0e0e0;
+}
+
+.port-select select {
+    width: 250px;
+    background-color: #ffffff;
+    color: #000000;
+    padding: 6px;
+    border: none;
+    font-size: 14px;
+}
+
+.header-buttons {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+/* Connect Button State Styles */
+.btn-primary {
+    background-color: #00aa00; 
+    color: white;
+    border: 2px solid #aaffaa;
+    border-radius: 20px;
+    padding: 8px 40px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: #008800;
+}
+
+.btn-primary:disabled {
+    background-color: #555;
+    border-color: #444;
+    color: #888;
+    cursor: not-allowed;
+}
+
+/* Demo Button Styles */
+.btn-demo {
+    background-color: #ff0000;
+    color: white;
+    border: 2px solid #ffaaaa;
+    border-radius: 20px; 
+    padding: 8px 40px;
+    font-size: 18px;
+    cursor: pointer;
+    width: auto;
+}
+
+.btn-demo:hover {
+    background-color: #cc0000;
+}
+
+.signature {
+    position: absolute;
+    bottom: 10px;
+    right: 20px;
+    font-size: 11px;
+    color: #888;
+    font-style: italic;
+    opacity: 0.7;
+}
+
+/* --- Main Layout --- */
 #app-container {
     display: flex;
     gap: 30px;
     max-width: 1300px;
     margin: 0 auto;
+    align-items: stretch; 
 }
 
 #fader-section {
     flex: 3;
     display: flex;
-    justify-content: center;
 }
 
+/* --- Sidebar Configuration --- */
 #sidebar {
     flex: 1;
     background-color: #2a2a2a;
@@ -46,9 +147,20 @@ body {
     display: flex;
     flex-direction: column;
     gap: 20px;
-    height: fit-content;
 }
 
+#sidebar h2 {
+    margin-top: 0;
+    margin-bottom: 5px;
+    text-align: center;
+    color: #e0e0e0;
+}
+
+#sidebar .sidebar-group:last-child {
+    margin-top: auto;
+}
+
+/* General Button Styles */
 button {
     background-color: #ff0000;
     color: white;
@@ -66,19 +178,13 @@ button:disabled { background-color: #666; border-color: #555; cursor: not-allowe
 .btn-secondary { background-color: #555; }
 .btn-secondary:hover:not(:disabled) { background-color: #777; }
 
+/* Dynamic States for Group Selection Mode */
 #btn-multi-select.active { background-color: #00aa00; border-color: #00ff00; }
 .fader-container.selected { border-color: #00ff00; background-color: #1a331a; }
 
-select {
-    padding: 8px;
-    background-color: #555;
-    color: white;
-    border: 1px solid #777;
-    border-radius: 4px;
-}
-
 .hidden { display: none !important; }
 
+/* Sidebar Group Separators */
 .sidebar-group {
     border-top: 1px solid #555;
     padding-top: 15px;
@@ -87,16 +193,19 @@ select {
     gap: 10px;
 }
 
-.sidebar-group h2, .sidebar-group h3 { margin: 0; text-align: center; color: #e0e0e0; }
-.sidebar-group h3 { font-size: 14px; color: #bbb; }
+.sidebar-group h3 { margin: 0; text-align: center; font-size: 14px; color: #bbb; }
 
+/* Preset Grid Layout */
 .preset-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 5px;
 }
 .preset-grid button { padding: 8px 0; font-size: 14px; background-color: #ff0000; }
+/* Visual feedback for the active preset button */
+.preset-grid button.active { background-color: #00aa00; border-color: #00ff00; }
 
+/* --- Compact Matrix Layout --- */
 #matrix-container {
     display: grid;
     grid-template-columns: 40px repeat(8, 101px); 

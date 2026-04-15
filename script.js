@@ -1,4 +1,4 @@
-// --- GLOBALS ---
+// --- GLOBAL STATE VARIABLES ---
 let midiAccess = null;
 let midiInPort = null;
 let midiOutPort = null;
@@ -6,37 +6,44 @@ let monitoringInterval = null;
 
 let isMultiSelectMode = false;
 let selectedVCAs = []; 
+
+// 2D Array storing the 64 fader values
 const vcaLevels = Array.from({ length: 8 }, () => Array(8).fill(0));
 
+// 2D Array storing the local edit state (true = edited locally [red], false = default [green])
+const vcaEditedLocally = Array.from({ length: 8 }, () => Array(8).fill(false));
+
+// Alyseum SysEx Header (Manufacturer ID + Device ID 0x0A)
+const SYSEX_HEADER = [0xf0, 0x00, 0x20, 0x09, 0x0a];
+
+// Buffer for storing incoming Bulk Dump presets
 let dumpBuffer = {}; 
 let dumpTimeout = null;
 
-const SYSEX_HEADER = [0xf0, 0x00, 0x20, 0x09, 0x0a];
-
 // ==========================================
-// 1. CORE MIDI FUNCTIONS (THE 8 COMMANDS)
+// 1. CORE MIDI OUTBOUND FUNCTIONS
 // ==========================================
 
-// TX 1: CLEAR all VCA (La commande est 0x01)
+// Command 0x01: Clear all hardware VCAs
 function sendClearAllVCA() {
     if (!midiOutPort) return;
     midiOutPort.send([...SYSEX_HEADER, 0x01, 0xf7]);
 }
 
-// TX 2: SET preset (La commande est 0x02)
+// Command 0x02: Load hardware preset
 function sendSetPreset(presetNum) {
     if (!midiOutPort) return;
     const pt = Math.max(0, Math.min(15, presetNum));
     midiOutPort.send([...SYSEX_HEADER, 0x02, pt, 0xf7]);
 }
 
-// TX 3: DISPLAY Request (La commande est 0x03)
+// Command 0x03: Request hardware to send current VCA values
 function sendDisplayRequest() {
     if (!midiOutPort) return;
     midiOutPort.send([...SYSEX_HEADER, 0x03, 0xf7]);
 }
 
-// TX 4: UPDATE upto 8 VCA Value (La commande est 0x04)
+// Command 0x04: Update specific VCA values (up to 8 per message)
 function sendUpdateVCAs(vcaList) {
     if (!midiOutPort || vcaList.length === 0) return;
     const updates = vcaList.slice(0, 8); 
@@ -51,14 +58,13 @@ function sendUpdateVCAs(vcaList) {
     midiOutPort.send(message);
 }
 
-// TX 5: DUMP request (La commande est 0x05)
+// Command 0x05: Request hardware to send a Bulk Dump to Editor
 function sendDumpRequest() {
     if (!midiOutPort) return;
     midiOutPort.send([...SYSEX_HEADER, 0x05, 0xf7]);
 }
 
-// TX 6: DUMP Transmit (LOAD BULK to VCATRIX)
-// bulkData doit être un objet contenant les 16 presets : { 0: [...], 1: [...], ..., 15: [...] }
+// Command 0x06: Transmit Bulk Dump from Editor to overwrite hardware memory
 function sendBulkDumpTransmit(bulkData) {
     if (!midiOutPort || !bulkData) return;
     
@@ -68,65 +74,63 @@ function sendBulkDumpTransmit(bulkData) {
             bulkData[i].forEach(val => message.push(Math.max(0, Math.min(127, val))));
             message.push(0xf7);
             
-            // On espace les 16 envois de 20 millisecondes chacun
+            // Stagger transmission to prevent MIDI buffer overflow
             setTimeout(() => {
                 midiOutPort.send(message);
-                console.log(`Preset ${i} envoyé !`);
+                console.log(`Preset ${i} transmitted.`);
             }, i * 20);
         }
     }
 }
 
-/**
- * Fonction de réception mise à jour
- * Vérifie le Device ID à l'index 4 et la commande à l'index 5
- */
+// ==========================================
+// 2. CORE MIDI INBOUND ROUTER
+// ==========================================
+
 function handleIncomingMidi(message) {
     const data = message.data;
     
-    // 1. Vérification stricte de l'en-tête Alyseum (Index 0 à 4)
-    if (data.length < 6 || data[0] !== 0xf0 || data[1] !== 0x00 || data[2] !== 0x20 || data[3] !== 0x09 || data[4] !== 0x0a) {
+    // Verify SysEx header length and manufacturer match
+    if (data.length < 6 || data[0] !== 0xf0 || data[1] !== 0x00 || data[2] !== 0x20 || data[3] !== 0x09) {
         return; 
     }
 
-    // 3. Identification de la commande (Index 5) 
+    // Verify Device ID matches VCATRIX (0x0A)
+    if (data[4] !== 0x0a) return;
+
     const type = data[5];
 
-    // Commande 0x10 ou 0x41 : Réception des 64 valeurs (Monitoring) 
-    if (type === 0x10) {
-        let index = 6; // Les données commencent après la commande
+    // Handle incoming Monitoring Data (Command 0x10 or alternative 0x41)
+    if (type === 0x10 || type === 0x41) {
+        let index = 6;
         for (let inIdx = 0; inIdx < 8; inIdx++) {
             for (let outIdx = 0; outIdx < 8; outIdx++) {
                 vcaLevels[outIdx][inIdx] = data[index];
+                // Draw fader with new value (retains its current red/green color state)
                 drawFader(`Conn_${inIdx}_${outIdx}`, data[index]);
                 index++;
             }
         }
     } 
-    // RX 2: DUMP Receive (Commande 0x11)
+    // Handle incoming Bulk Dump Data (Command 0x11)
     else if (type === 0x11) {
         const presetNum = data[6];
         const dumpValues = [];
-        for (let i = 7; i < 7 + 64; i++) {
-            dumpValues.push(data[i]);
-        }
+        for (let i = 7; i < 7 + 64; i++) dumpValues.push(data[i]);
         
-        // 1. On stocke le preset reçu dans notre "salle d'attente"
+        // Store received preset in buffer
         dumpBuffer[presetNum] = dumpValues;
         
-        // 2. On annule le timer de sécurité s'il existait
         if (dumpTimeout) clearTimeout(dumpTimeout);
 
-        // 3. On vérifie si on a bien reçu les 16 presets (de 0 à 15)
+        // Download file if all 16 presets are received
         if (Object.keys(dumpBuffer).length === 16) {
-            console.log("Les 16 presets ont été reçus avec succès !");
             downloadBulkDumpFile(dumpBuffer);
-            dumpBuffer = {}; // On vide le buffer pour la prochaine fois
+            dumpBuffer = {}; 
         } else {
-            // Sécurité : Si un message se perd en route, on télécharge quand même
-            // ce qu'on a reçu au bout d'1 seconde d'inactivité.
+            // Failsafe: Download partial dump if connection drops during transmission
             dumpTimeout = setTimeout(() => {
-                console.warn("Temps écoulé : Dump incomplet, sauvegarde partielle.");
+                console.warn("Timeout: Incomplete Dump received, saving partial file.");
                 downloadBulkDumpFile(dumpBuffer);
                 dumpBuffer = {};
             }, 1000);
@@ -134,10 +138,12 @@ function handleIncomingMidi(message) {
     }
 }
 
+
 // ==========================================
-// 2. MIDI SETUP & CONNECTION
+// 3. MIDI SETUP & CONNECTION
 // ==========================================
 
+// Request MIDI access from browser
 async function startMidi() {
     try {
         midiAccess = await navigator.requestMIDIAccess({ sysex: true });
@@ -145,17 +151,20 @@ async function startMidi() {
         midiAccess.onstatechange = populateMidiSelects;
     } catch (err) {
         console.error("MIDI access failed:", err);
-        alert("Web MIDI is not supported or access was denied.");
     }
 }
 
+// Populate HTML dropdowns with available MIDI devices
 function populateMidiSelects() {
     const inSelect = document.getElementById('midi-in');
     const outSelect = document.getElementById('midi-out');
-    const btnConnect = document.getElementById('btn-connect');
+    const btnConnect = document.getElementById('btn-connect'); 
     
-    inSelect.innerHTML = '<option value="">Select...</option>';
-    outSelect.innerHTML = '<option value="">Select...</option>';
+    const currentIn = inSelect.value;
+    const currentOut = outSelect.value;
+    
+    inSelect.innerHTML = '<option value="">Please Select</option>';
+    outSelect.innerHTML = '<option value="">Please Select</option>';
 
     for (const input of midiAccess.inputs.values()) {
         const option = document.createElement('option');
@@ -170,28 +179,56 @@ function populateMidiSelects() {
         outSelect.add(option);
     }
 
-    const checkSelection = () => btnConnect.disabled = (inSelect.value === "" || outSelect.value === "");
+    if (currentIn) inSelect.value = currentIn;
+    if (currentOut) outSelect.value = currentOut;
+
+    // Enable Connect button only when both ports are selected
+    const checkSelection = () => {
+        btnConnect.disabled = (inSelect.value === "" || outSelect.value === "");
+    };
+    
     inSelect.addEventListener('change', checkSelection);
     outSelect.addEventListener('change', checkSelection);
 }
 
-document.getElementById('btn-connect').addEventListener('click', () => {
-    midiInPort = midiAccess.inputs.get(document.getElementById('midi-in').value);
-    midiOutPort = midiAccess.outputs.get(document.getElementById('midi-out').value);
-    
-    // Assign the router to incoming messages
-    midiInPort.onmidimessage = handleIncomingMidi;
-
+// Utility to switch from Setup screen to Editor Interface
+function launchApp(isDemoMode) {
     document.getElementById('setup-header').classList.add('hidden');
     document.getElementById('app-container').classList.remove('hidden');
     generateMatrix();
+    
+    if (isDemoMode) {
+        console.log("Started in DEMO Mode: MIDI transmission is disabled.");
+    } else {
+        console.log("MIDI Connection successfully established.");
+    }
+}
+
+// Handle Connect button click
+document.getElementById('btn-connect').addEventListener('click', () => {
+    const inId = document.getElementById('midi-in').value;
+    const outId = document.getElementById('midi-out').value;
+    
+    midiInPort = midiAccess.inputs.get(inId);
+    midiOutPort = midiAccess.outputs.get(outId);
+    midiInPort.onmidimessage = handleIncomingMidi;
+    
+    launchApp(false);
+});
+
+// Handle DEMO button click
+document.getElementById('btn-demo').addEventListener('click', () => {
+    midiInPort = null;
+    midiOutPort = null;
+    launchApp(true);
 });
 
 
 // ==========================================
-// 3. UI GENERATION & INTERACTION
+// 4. UI GENERATION & INTERACTION
 // ==========================================
 
+// Build the 9x9 HTML grid including IN/OUT axis labels
 function generateMatrix() {
     const container = document.getElementById('matrix-container');
     container.innerHTML = ''; 
@@ -229,6 +266,7 @@ function generateMatrix() {
     }
 }
 
+// Render the graphical fader onto the HTML canvas element
 function drawFader(canvasId, value) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
@@ -236,7 +274,15 @@ function drawFader(canvasId, value) {
     const size = 101;
     const padding = 10;
     
+    // Extract matrix indices from the canvas ID to check local edit state
+    const parts = canvasId.split('_');
+    const inI = parseInt(parts[1], 10);
+    const outI = parseInt(parts[2], 10);
+    const isEditedLocally = vcaEditedLocally[outI][inI];
+
     ctx.clearRect(0, 0, size, size);
+    
+    // Draw diagonal track
     ctx.beginPath();
     ctx.moveTo(padding, size - padding);
     ctx.lineTo(size - padding, padding);
@@ -244,72 +290,66 @@ function drawFader(canvasId, value) {
     ctx.lineWidth = 2;
     ctx.stroke();
     
+    // Calculate cursor position
     const pos = value / 127;
     const x = padding + pos * (size - 2 * padding);
     const y = (size - padding) - pos * (size - 2 * padding);
     
+    // Draw cursor dot
     ctx.beginPath();
     ctx.arc(x, y, 6, 0, 2 * Math.PI);
-    ctx.fillStyle = '#00ff00';
+    // Fill color: Red if edited by user, Green if default/untouched
+    ctx.fillStyle = isEditedLocally ? '#ff0000' : '#00ff00';
     ctx.fill();
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2;
     ctx.stroke();
     
+    // Draw centered value text
     ctx.fillStyle = '#ffffff';
-    ctx.font = '10px Arial';
-    ctx.fillText(value, 5, 12);
+    ctx.font = 'bold 14px Arial'; 
+    ctx.textBaseline = 'middle';  
+    ctx.fillText(value, 8, size / 2); 
 }
 
+// Handle mouse events on canvas to adjust VCA values
 function setupCanvasInteraction(canvas, inIdx, outIdx) {
     let isDragging = false;
-    let currentDraggedValue = 0; // On stocke la valeur pendant le mouvement
 
+    // Convert mouse coordinates to a 0-127 scale value
     const calculateValue = (e) => {
         const rect = canvas.getBoundingClientRect();
-        // On a 10px de padding, et la taille active de la barre est de 81px (101 - 2*10)
         const diagonalPos = ((e.clientX - rect.left - 10) + (81 - (e.clientY - rect.top - 10))) / 2;
         let value = Math.round((diagonalPos / 81) * 127);
         return Math.max(0, Math.min(127, value));
     };
 
-    // 1. Fonction pour l'AFFICHAGE (exécutée en continu)
-    const handleVisualMovement = (e) => {
-        currentDraggedValue = calculateValue(e);
+    // Update visuals and send MIDI data based on mouse movement
+    const handleMovement = (e) => {
+        const val = calculateValue(e);
         const isSelected = selectedVCAs.some(v => v.inIdx === inIdx && v.outIdx === outIdx);
         
         if (isSelected && selectedVCAs.length > 0) {
-            // Mettre à jour tous les faders sélectionnés visuellement
-            selectedVCAs.forEach(v => {
-                vcaLevels[v.outIdx][v.inIdx] = currentDraggedValue;
-                drawFader(v.canvasId, currentDraggedValue);
-            });
-        } else {
-            // Mettre à jour un seul fader visuellement
-            vcaLevels[outIdx][inIdx] = currentDraggedValue;
-            drawFader(canvas.id, currentDraggedValue);
-        }
-    };
-
-    // 2. Fonction pour l'ENVOI MIDI (exécutée uniquement à la fin)
-    const sendMidiData = () => {
-        const isSelected = selectedVCAs.some(v => v.inIdx === inIdx && v.outIdx === outIdx);
-        
-        if (isSelected && selectedVCAs.length > 0) {
+            // Multi-VCA update
             const updates = selectedVCAs.map(v => {
-                return { address: v.inIdx + (8 * v.outIdx), value: currentDraggedValue };
+                vcaLevels[v.outIdx][v.inIdx] = val;
+                vcaEditedLocally[v.outIdx][v.inIdx] = true; // Mark as edited
+                drawFader(v.canvasId, val);
+                return { address: v.inIdx + (8 * v.outIdx), value: val };
             });
-            sendUpdateVCAs(updates);
-            sendDisplayRequest();
+            sendUpdateVCAs(updates); 
         } else {
-            sendUpdateVCAs([{ address: inIdx + (8 * outIdx), value: currentDraggedValue }]);
-            sendDisplayRequest();
+            // Single-VCA update
+            vcaLevels[outIdx][inIdx] = val;
+            vcaEditedLocally[outIdx][inIdx] = true; // Mark as edited
+            drawFader(canvas.id, val);
+            sendUpdateVCAs([{ address: inIdx + (8 * outIdx), value: val }]);
         }
     };
 
     canvas.addEventListener('mousedown', (e) => {
         if (isMultiSelectMode) {
-            // Logique de sélection (inchangée)
+            // Toggle selection state for the clicked canvas
             const idx = selectedVCAs.findIndex(v => v.inIdx === inIdx && v.outIdx === outIdx);
             if (idx > -1) {
                 selectedVCAs.splice(idx, 1);
@@ -322,92 +362,109 @@ function setupCanvasInteraction(canvas, inIdx, outIdx) {
                     alert("You can only select up to 8 VCAs at the same time.");
                 }
             }
+            // Show/Hide the Clear Selection button
             document.getElementById('btn-clear-selection').classList.toggle('hidden', selectedVCAs.length === 0);
         } else {
-            // Début du glissement
             isDragging = true;
-            handleVisualMovement(e); // Met à jour le visuel au clic
+            handleMovement(e);
         }
     });
 
     window.addEventListener('mousemove', (e) => {
-        if (isDragging && !isMultiSelectMode) {
-            handleVisualMovement(e); // Met à jour le visuel pendant le mouvement
-        }
+        if (isDragging && !isMultiSelectMode) handleMovement(e); 
     });
 
     window.addEventListener('mouseup', () => {
-        if (isDragging) {
-            isDragging = false;
-            sendMidiData(); // <-- C'est ici qu'on envoie le MIDI enfin !
-        }
+        isDragging = false; 
     });
+}
+
+// Utility function to revert all local edit states to green
+function resetAllColorsToGreen() {
+    for (let inIdx = 0; inIdx < 8; inIdx++) {
+        for (let outIdx = 0; outIdx < 8; outIdx++) {
+            vcaEditedLocally[outIdx][inIdx] = false;
+            drawFader(`Conn_${inIdx}_${outIdx}`, vcaLevels[outIdx][inIdx]);
+        }
+    }
 }
 
 
 // ==========================================
-// 4. SIDEBAR EVENT LISTENERS
+// 5. SIDEBAR EVENT LISTENERS
 // ==========================================
 
-// Group Mode
+// Toggle Group Mode
 document.getElementById('btn-multi-select').addEventListener('click', (e) => {
     isMultiSelectMode = !isMultiSelectMode;
     e.target.innerText = isMultiSelectMode ? "Multi-Select: ON" : "Multi-Select: OFF";
     e.target.classList.toggle('active', isMultiSelectMode);
 });
 
+// Clear current canvas selection
 document.getElementById('btn-clear-selection').addEventListener('click', () => {
     selectedVCAs.forEach(v => document.getElementById(v.canvasId)?.parentElement.classList.remove('selected'));
     selectedVCAs = [];
     document.getElementById('btn-clear-selection').classList.add('hidden');
 });
 
-// Clear All VCA
+// Reset all values to zero and clear local edit states
 document.getElementById('btn-clear').addEventListener('click', () => {
-    // Local visual reset
     for (let inIdx = 0; inIdx < 8; inIdx++) {
         for (let outIdx = 0; outIdx < 8; outIdx++) {
             vcaLevels[outIdx][inIdx] = 0;
+            vcaEditedLocally[outIdx][inIdx] = false;
             drawFader(`Conn_${inIdx}_${outIdx}`, 0);
         }
     }
     sendClearAllVCA();
 });
 
-// Monitoring (10Hz)
+// Toggle 10Hz continuous hardware monitoring
 document.getElementById('btn-monitor').addEventListener('click', (e) => {
     if (monitoringInterval) {
         clearInterval(monitoringInterval);
         monitoringInterval = null;
-        e.target.innerText = "Enable Monitoring (10Hz)";
+        e.target.innerText = "Enable monitoring (10Hz)";
         e.target.style.backgroundColor = "#ff0000";
     } else {
         monitoringInterval = setInterval(sendDisplayRequest, 100);
-        e.target.innerText = "Disable Monitoring";
+        e.target.innerText = "Disable monitoring";
         e.target.style.backgroundColor = "#00aa00";
     }
 });
 
-// Presets (1-16)
+// Load specific hardware preset and reset local edit states
 document.querySelectorAll('.btn-preset').forEach(btn => {
     btn.addEventListener('click', (e) => {
+        // Remove 'active' class from all buttons, then apply to the clicked one
+        document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        
+        // Revert all modified faders to green since we are loading a preset
+        resetAllColorsToGreen();
+
+        // Transmit command
+        if (!midiOutPort) return;
         const presetNum = parseInt(e.target.getAttribute('data-preset'), 10);
         sendSetPreset(presetNum);
-        // Ask for visual update shortly after
+        
+        // Request values shortly after loading preset to refresh UI
         setTimeout(sendDisplayRequest, 50);
     });
 });
 
-// Dump Actions
+// Trigger hardware dump request
 document.getElementById('btn-dump-rx').addEventListener('click', () => {
     sendDumpRequest();
 });
 
+// Open file selector to load dump file
 document.getElementById('btn-dump-tx').addEventListener('click', () => {
-    // Ouvre la boite de dialogue pour choisir le fichier sur le Mac
     document.getElementById('file-upload').click();
 });
 
+// Read selected dump file and transmit data to hardware
 document.getElementById('file-upload').addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -416,77 +473,31 @@ document.getElementById('file-upload').addEventListener('change', (e) => {
     reader.onload = (event) => {
         try {
             const bulkData = JSON.parse(event.target.result);
-            // On vérifie grossièrement que c'est un Bulk (présence de multiples presets)
             if (bulkData && typeof bulkData === 'object' && bulkData[0]) {
                 sendBulkDumpTransmit(bulkData);
                 alert("Bulk Dump (16 Presets) Transmitted Successfully!");
             } else {
-                alert("Format de fichier invalide.");
+                alert("Invalid File Format.");
             }
         } catch (err) {
-            alert("Erreur de lecture du fichier.");
+            alert("Error reading file.");
         }
     };
     reader.readAsText(file);
 });
 
+// Generate and download a JSON file containing the Bulk Dump data
 function downloadBulkDumpFile(bulkData) {
     const blob = new Blob([JSON.stringify(bulkData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `VCATRIX_BULK_16_Presets.vca`; // Un seul fichier !
+    a.download = `VCATRIX_BULK_16_Presets.vca`; 
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 }
 
-// ==========================================
-// 5. MODE SIMULATION (POUR TESTER SANS LA CARTE)
-// ==========================================
-
-// Simule la réception d'un Monitoring (10Hz) avec des valeurs aléatoires
-function testerReceptionMonitoring() {
-    console.log("Simulation : Réception d'un monitoring...");
-    const fakeMessage = [0xf0, 0x00, 0x20, 0x09, 0x0a, 0x10]; // En-tête + Commande 10
-    
-    // On génère 64 valeurs au hasard (entre 0 et 127)
-    for (let i = 0; i < 64; i++) {
-        fakeMessage.push(Math.floor(Math.random() * 128));
-    }
-    
-    fakeMessage.push(0xf7); // Fin du message
-    
-    // On fait croire à notre code que ça vient du MIDI
-    handleIncomingMidi({ data: fakeMessage });
-}
-
-// Simule la réception d'un Bulk Dump COMPLET (16 presets) avec données valides
-function testerReceptionDump() {
-    console.log("Simulation : Réception du Bulk Dump (16 presets)...");
-    
-    // La boucle des presets va explicitement de 0x00 à 0x0F (0 à 15)
-    for (let p = 0x00; p <= 0x0F; p++) {
-        const fakeMessage = [0xf0, 0x00, 0x20, 0x09, 0x0a, 0x11, p];
-        
-        // 64 valeurs par preset (strictement entre 0x00 et 0x7F)
-        for (let i = 0; i < 64; i++) {
-            // On crée un motif qui change en fonction du preset 'p'
-            // Le modulo 128 (% 128) garantit que la valeur ne dépassera jamais 127 (7F)
-            let fakeValue = (i * 2 + (p * 5)) % 128; 
-            fakeMessage.push(fakeValue);
-        }
-        
-        fakeMessage.push(0xf7); // Fin du message SysEx
-        
-        // On simule l'arrivée successive des 16 messages avec 10ms d'écart
-        setTimeout(() => {
-            handleIncomingMidi({ data: fakeMessage });
-            console.log(`Simulation : Preset ${p} reçu.`);
-        }, p * 10);
-    }
-}
-
-// --- BOOT ---
+// --- INITIALIZE APPLICATION ---
 startMidi();
