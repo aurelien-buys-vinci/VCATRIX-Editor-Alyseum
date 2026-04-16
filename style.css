@@ -37,7 +37,8 @@ body {
 
 #midi-setup {
     display: flex;
-    gap: 40px; 
+    align-items: center;
+    gap: 30px;
     margin-bottom: 30px;
 }
 
@@ -68,6 +69,10 @@ body {
     align-items: center;
 }
 
+.btn {
+    min-width: 210px;
+}
+
 /* Connect Button State Styles */
 .btn-primary {
     background-color: #00aa00; 
@@ -92,6 +97,7 @@ body {
 }
 
 /* Demo Button Styles */
+
 .btn-demo {
     background-color: #ff0000;
     color: white;
@@ -127,7 +133,6 @@ body {
 }
 
 #fader-section {
-    flex: 3;
     display: flex;
 }
 
@@ -137,7 +142,6 @@ body {
     background-color: #2a2a2a;
     border: 1px solid #444;
     padding: 20px;
-    border-radius: 8px;
     display: flex;
     flex-direction: column;
     gap: 20px;
