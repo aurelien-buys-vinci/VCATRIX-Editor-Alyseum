@@ -9,7 +9,7 @@
 <body>
 
     <header id="setup-header">
-        <h2><em>ALYSEUM</em> - VCATRIX editor</h2>
+        <h2><em>ALYSEUM</em> - VCATRIX editor <span class="revision">R.5</span></h2>
         <p class="subtitle">Two MIDI ports (In and Out) are required; otherwise, use Demo mode</p>
         
         <div id="midi-setup">
@@ -24,8 +24,12 @@
         </div>
         
         <div class="header-buttons">
-            <button id="btn-demo" class="btn btn-demo">Demo</button>
-            <button id="btn-connect" class="btn btn-primary" disabled>Connect</button>
+            <div class="btn-container">
+                <button id="btn-demo" class="btn btn-demo">Demo</button>
+            </div>
+            <div class="btn-container">
+                <button id="btn-connect" class="btn btn-primary" disabled>Connect</button>
+            </div>
         </div>
 
         <span class="signature">Buys Aurélien</span>

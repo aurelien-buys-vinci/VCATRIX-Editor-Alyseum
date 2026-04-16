@@ -29,6 +29,12 @@ body {
     color: #e0e0e0;
 }
 
+#setup-header .revision {
+    font-size: 14px;
+    font-weight: normal;
+    color: #aaa;
+}
+
 .subtitle {
     font-size: 14px;
     margin-bottom: 30px;
@@ -65,12 +71,24 @@ body {
 
 .header-buttons {
     display: flex;
-    gap: 20px;
+    gap: 30px;
     align-items: center;
+    justify-content: center;
+}
+
+.header-buttons .btn-container {
+    width: 250px;
+    display: flex;
+    justify-content: center;
 }
 
 .btn {
-    min-width: 210px;
+    width: 150px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
 }
 
 /* Connect Button State Styles */
@@ -79,7 +97,6 @@ body {
     color: white;
     border: 2px solid #aaffaa;
     border-radius: 20px;
-    padding: 8px 40px;
     font-size: 18px;
     cursor: pointer;
     transition: all 0.2s;
@@ -103,10 +120,8 @@ body {
     color: white;
     border: 2px solid #ffaaaa;
     border-radius: 20px; 
-    padding: 8px 40px;
     font-size: 18px;
     cursor: pointer;
-    width: auto;
 }
 
 .btn-demo:hover {
