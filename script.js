@@ -239,11 +239,13 @@ function generateMatrix() {
                 container.appendChild(document.createElement('div'));
             } else if (row === 0) {
                 const label = document.createElement('div');
+                label.id = `label-out-${col - 1}`;
                 label.className = 'axis-label top';
                 label.innerText = `OUT ${col}`;
                 container.appendChild(label);
             } else if (col === 0) {
                 const label = document.createElement('div');
+                label.id = `label-in-${row - 1}`;
                 label.className = 'axis-label left';
                 label.innerText = `IN ${row}`;
                 container.appendChild(label);
@@ -376,6 +378,20 @@ function setupCanvasInteraction(canvas, inIdx, outIdx) {
 
     window.addEventListener('mouseup', () => {
         isDragging = false; 
+    });
+
+    canvas.addEventListener('mouseenter', () => {
+        const labelIn = document.getElementById(`label-in-${inIdx}`);
+        const labelOut = document.getElementById(`label-out-${outIdx}`);
+        if (labelIn) labelIn.classList.add('highlight');
+        if (labelOut) labelOut.classList.add('highlight');
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+        const labelIn = document.getElementById(`label-in-${inIdx}`);
+        const labelOut = document.getElementById(`label-out-${outIdx}`);
+        if (labelIn) labelIn.classList.remove('highlight');
+        if (labelOut) labelOut.classList.remove('highlight');
     });
 }
 
