@@ -380,18 +380,43 @@ function setupCanvasInteraction(canvas, inIdx, outIdx) {
         isDragging = false; 
     });
 
+
+    // Highlight corresponding labels on hover, with special handling for multi-selected VCAs 
     canvas.addEventListener('mouseenter', () => {
-        const labelIn = document.getElementById(`label-in-${inIdx}`);
-        const labelOut = document.getElementById(`label-out-${outIdx}`);
-        if (labelIn) labelIn.classList.add('highlight');
-        if (labelOut) labelOut.classList.add('highlight');
+        const isSelected = selectedVCAs.some(v => v.inIdx === inIdx && v.outIdx === outIdx);
+
+        if (!isMultiSelectMode && isSelected && selectedVCAs.length > 0) {
+            selectedVCAs.forEach(v => {
+                const labelIn = document.getElementById(`label-in-${v.inIdx}`);
+                const labelOut = document.getElementById(`label-out-${v.outIdx}`);
+                if (labelIn) labelIn.classList.add('highlight');
+                if (labelOut) labelOut.classList.add('highlight');
+            });
+        } else {
+            const labelIn = document.getElementById(`label-in-${inIdx}`);
+            const labelOut = document.getElementById(`label-out-${outIdx}`);
+            if (labelIn) labelIn.classList.add('highlight');
+            if (labelOut) labelOut.classList.add('highlight');
+        }
     });
 
+    // Remove label highlights on mouse leave, with special handling for multi-selected VCAs
     canvas.addEventListener('mouseleave', () => {
-        const labelIn = document.getElementById(`label-in-${inIdx}`);
-        const labelOut = document.getElementById(`label-out-${outIdx}`);
-        if (labelIn) labelIn.classList.remove('highlight');
-        if (labelOut) labelOut.classList.remove('highlight');
+        const isSelected = selectedVCAs.some(v => v.inIdx === inIdx && v.outIdx === outIdx);
+
+        if (!isMultiSelectMode && isSelected && selectedVCAs.length > 0) {
+            selectedVCAs.forEach(v => {
+                const labelIn = document.getElementById(`label-in-${v.inIdx}`);
+                const labelOut = document.getElementById(`label-out-${v.outIdx}`);
+                if (labelIn) labelIn.classList.remove('highlight');
+                if (labelOut) labelOut.classList.remove('highlight');
+            });
+        } else {
+            const labelIn = document.getElementById(`label-in-${inIdx}`);
+            const labelOut = document.getElementById(`label-out-${outIdx}`);
+            if (labelIn) labelIn.classList.remove('highlight');
+            if (labelOut) labelOut.classList.remove('highlight');
+        }
     });
 }
 
