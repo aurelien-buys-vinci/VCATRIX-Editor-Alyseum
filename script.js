@@ -21,7 +21,7 @@ let dumpBuffer = {};
 let dumpTimeout = null;
 
 // ==========================================
-// 1. CORE MIDI OUTBOUND FUNCTIONS
+// CORE MIDI OUTBOUND FUNCTIONS
 // ==========================================
 
 // Command 0x01: Clear all hardware VCAs
@@ -84,7 +84,7 @@ function sendBulkDumpTransmit(bulkData) {
 }
 
 // ==========================================
-// 2. CORE MIDI INBOUND ROUTER
+// CORE MIDI INBOUND ROUTER
 // ==========================================
 
 function handleIncomingMidi(message) {
@@ -140,7 +140,7 @@ function handleIncomingMidi(message) {
 
 
 // ==========================================
-// 3. MIDI SETUP & CONNECTION
+// MIDI SETUP & CONNECTION
 // ==========================================
 
 // Request MIDI access from browser
@@ -225,13 +225,81 @@ document.getElementById('btn-demo').addEventListener('click', () => {
 
 
 // ==========================================
-// 4. UI GENERATION & INTERACTION
+// EDITABLE LABELS LOGIC & STORAGE
+// ==========================================
+
+// Restore saved labels from localStorage or return an empty object if none exist
+function getSavedLabels() {
+    const saved = localStorage.getItem('vcatrixLabels');
+    return saved ? JSON.parse(saved) : {};
+}
+
+// Save a specific label in localStorage
+function SaveLabel(labelId, newValue) {
+    // 1. Retrieve existing labels from localStorage (or get an empty object if none exist)
+    const labels = getSavedLabels();
+    
+    // 2. Update the specific label with the new value
+    labels[labelId] = newValue;
+    
+    // 3. Save the updated labels object back to localStorage
+    localStorage.setItem('vcatrixLabels', JSON.stringify(labels));    
+}
+
+// Function to make any element (header, cell) editable and handle saving
+function makeHeaderEditable(headerElement) {
+    // Enable editing and change cursor
+    headerElement.contentEditable = "true";
+    headerElement.style.cursor = "text";
+
+    // Handle Key press for Enter and 8-character limit
+    headerElement.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault(); // Prevent creating a new line
+            this.blur();        // Unfocus to save
+            return;
+        }
+
+        // Check if user is trying to type a normal character
+        if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+            const selection = window.getSelection().toString();
+            
+            // If length is 8 or more AND no text is currently selected to be replaced
+            if (this.innerText.length >= 8 && selection === '') {
+                e.preventDefault(); // Block the keystroke
+            }
+        }
+    });
+
+    // Prevent pasting text that exceeds the 8-character limit
+    headerElement.addEventListener('paste', function(e) {
+        e.preventDefault();
+        const text = (e.originalEvent || e).clipboardData.getData('text/plain');
+        const remainingSpace = 8 - this.innerText.length;
+        
+        if (remainingSpace > 0) {
+            // Deprecated but works perfectly for contentEditable in this context
+            document.execCommand('insertText', false, text.substring(0, remainingSpace));
+        }
+    });
+
+    // Save when the user clicks away or presses Enter
+    headerElement.addEventListener('blur', function() {
+        const newValue = this.innerText.trim();
+        SaveLabel(this.id, newValue);
+    });
+}
+
+// ==========================================
+// UI GENERATION & INTERACTION
 // ==========================================
 
 // Build the 9x9 HTML grid including IN/OUT axis labels
 function generateMatrix() {
     const container = document.getElementById('matrix-container');
-    container.innerHTML = ''; 
+    container.innerHTML = '';
+
+    const savedLabels = getSavedLabels();
 
     for (let row = 0; row <= 8; row++) {
         for (let col = 0; col <= 8; col++) {
@@ -241,13 +309,19 @@ function generateMatrix() {
                 const label = document.createElement('div');
                 label.id = `label-out-${col - 1}`;
                 label.className = 'axis-label top';
-                label.innerText = `OUT ${col}`;
+                label.innerText = savedLabels[label.id] || `OUT ${col}`;
+                
+                makeHeaderEditable(label);
+                
                 container.appendChild(label);
             } else if (col === 0) {
                 const label = document.createElement('div');
                 label.id = `label-in-${row - 1}`;
                 label.className = 'axis-label left';
-                label.innerText = `IN ${row}`;
+                label.innerText = savedLabels[label.id] || `IN ${row}`;
+                
+                makeHeaderEditable(label);
+                
                 container.appendChild(label);
             } else {
                 const inIdx = row - 1;
@@ -432,7 +506,7 @@ function resetAllColorsToGreen() {
 
 
 // ==========================================
-// 5. SIDEBAR EVENT LISTENERS & MODALS
+// SIDEBAR EVENT LISTENERS & MODALS
 // ==========================================
 
 // Toggle Group Mode
@@ -496,19 +570,21 @@ document.getElementById('btn-dump-rx').addEventListener('click', () => {
 });
 
 // Generate and download a JSON file containing the Bulk Dump data
-function downloadBulkDumpFile(bulkData) {
-    const blob = new Blob([JSON.stringify(bulkData, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    const now = new Date();
-    const formattedDate = `${String(now.getDate()).padStart(2, '0')}_${String(now.getMonth() + 1).padStart(2, '0')}_${now.getFullYear()}`;
-    a.href = url;
-    a.download = `VCATRIX_BULK_${formattedDate}.vca`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
+        function downloadBulkDumpFile(bulkData) {
+            bulkData.labels = getSavedLabels();
+
+            const blob = new Blob([JSON.stringify(bulkData, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const now = new Date();
+            const formattedDate = `${String(now.getDate()).padStart(2, '0')}_${String(now.getMonth() + 1).padStart(2, '0')}_${now.getFullYear()}`;
+            a.href = url;
+            a.download = `VCATRIX_BULK_${formattedDate}.vca`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
 
 // --- TRANSMIT MODAL LOGIC ---
 
@@ -529,11 +605,23 @@ document.getElementById('file-upload').addEventListener('change', (e) => {
     reader.onload = (event) => {
         try {
             const bulkData = JSON.parse(event.target.result);
-            if (bulkData && typeof bulkData === 'object' && bulkData[0]) {
-                // Store data and show modal instead of sending immediately
-                pendingBulkData = bulkData;
-                document.getElementById('transmit-select').value = "all"; // Reset to default
-                document.getElementById('transmit-modal').classList.remove('hidden');
+            
+            // Basic validation to check if the file has the expected structure (at least one preset or labels)
+            if (bulkData && typeof bulkData === 'object' && (bulkData[0] || bulkData.labels)) {
+                
+                // If the file contains labels, we save them immediately to localStorage and regenerate the matrix to reflect new names
+                if (bulkData.labels) {
+                    localStorage.setItem('vcatrixLabels', JSON.stringify(bulkData.labels));
+                    generateMatrix(); 
+                }
+
+                // Store the presets in pendingBulkData for later transmission upon user confirmation
+                if (bulkData[0]) {
+                    pendingBulkData = bulkData;
+                    document.getElementById('transmit-select').value = "all"; // Reset to default
+                    document.getElementById('transmit-modal').classList.remove('hidden');
+                }
+
             } else {
                 alert("Invalid File Format.");
             }

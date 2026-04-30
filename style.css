@@ -221,8 +221,9 @@ button:disabled { background-color: #666; border-color: #555; cursor: not-allowe
 /* --- Compact Matrix Layout --- */
 #matrix-container {
     display: grid;
-    grid-template-columns: 40px repeat(8, 101px); 
-    grid-template-rows: 30px repeat(8, 101px);
+    /* Changed to minmax so it's at least 40px/30px, but expands if text is longer */
+    grid-template-columns: minmax(40px, auto) repeat(8, 101px); 
+    grid-template-rows: minmax(30px, auto) repeat(8, 101px);
     gap: 0;
 }
 
@@ -234,7 +235,16 @@ button:disabled { background-color: #666; border-color: #555; cursor: not-allowe
     font-weight: bold;
     color: #ccc;
     background-color: #333;
+    white-space: nowrap; /* Prevent text from wrapping to a new line */
+    padding: 0 10px; /* Add horizontal padding so text doesn't touch the borders */
 }
+
+/* Remove the ugly default blue outline when editing and add a subtle focus state */
+.axis-label:focus {
+    outline: none;
+    background-color: #4a4a4a; /* Slightly lighter background to show it's active */
+}
+
 .axis-label.top { border-bottom: 2px solid #555; }
 .axis-label.left { border-right: 2px solid #555; }
 
