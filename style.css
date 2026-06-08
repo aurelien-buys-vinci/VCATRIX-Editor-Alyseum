@@ -41,6 +41,18 @@ body {
     color: #ccc;
 }
 
+.warning-box {
+    background-color: rgba(255, 68, 68, 0.1); 
+    border: 1px solid #ff4444; 
+    color: #ffaaaa;
+    padding: 15px 20px; 
+    border-radius: 8px; 
+    margin-bottom: 25px;
+    font-size: 14px; 
+    max-width: 80%; 
+    line-height: 1.5;
+}
+
 #midi-setup {
     display: flex;
     align-items: center;

@@ -150,7 +150,10 @@ async function startMidi() {
         populateMidiSelects();
         midiAccess.onstatechange = populateMidiSelects;
     } catch (err) {
-        console.error("MIDI access failed:", err);
+        console.warn("MIDI access request failed or rejected.", err);
+        document.getElementById('btn-connect').disabled = true;
+        document.getElementById('midi-setup').classList.add('hidden');
+        document.getElementById('browser-warning').classList.remove('hidden');
     }
 }
 
