@@ -717,13 +717,11 @@ document.getElementById('btn-transmit-confirm').addEventListener('click', () => 
     
     if (selection === 'all') {
         sendBulkDumpTransmit(pendingBulkData);
-        alert("Bulk Dump (All 16 Presets) Transmitted Successfully!");
     } else {
         const presetIndex = parseInt(selection, 10);
         if (pendingBulkData[presetIndex]) {
             const singlePresetData = { [presetIndex]: pendingBulkData[presetIndex] };
             sendBulkDumpTransmit(singlePresetData);
-            alert(`Preset ${presetIndex + 1} Transmitted Successfully!`);
         } else {
             alert("Error: This preset is empty or missing from the file.");
         }
