@@ -224,8 +224,8 @@ function handleIncomingMidi(message) {
 
     if (type === 0x10 || type === 0x41) {
         let index = 6;
-        for (let inIdx = 0; inIdx < 8; inIdx++) {
-            for (let outIdx = 0; outIdx < 8; outIdx++) {
+        for (let outIdx = 0; outIdx < 8; outIdx++) {
+            for (let inIdx = 0; inIdx < 8; inIdx++) {
                 vcaLevels[outIdx][inIdx] = data[index];
                 drawFader(`Conn_${inIdx}_${outIdx}`, data[index]);
                 index++;
@@ -422,22 +422,25 @@ function generateMatrix() {
             if (row === 0 && col === 0) {
                 container.appendChild(document.createElement('div'));
             } else if (row === 0) {
+                const inIdx = col - 1;
                 const label = document.createElement('div');
-                label.id = `label-out-${col - 1}`;
+                label.id = `label-in-${inIdx}`;
                 label.className = 'axis-label top';
-                label.innerText = savedLabels[label.id] || `OUT ${col}`;
+                label.innerText = savedLabels[label.id] || `IN ${col}`;
                 makeHeaderEditable(label);
                 container.appendChild(label);
             } else if (col === 0) {
+                const outIdx = row - 1;
                 const label = document.createElement('div');
-                label.id = `label-in-${row - 1}`;
+                label.id = `label-out-${outIdx}`;
                 label.className = 'axis-label left';
-                label.innerText = savedLabels[label.id] || `IN ${row}`;
+                label.innerText = savedLabels[label.id] || `OUT ${row}`;
                 makeHeaderEditable(label);
                 container.appendChild(label);
             } else {
-                const inIdx = row - 1;
-                const outIdx = col - 1;
+                const inIdx = col - 1;
+                const outIdx = row - 1;
+                
                 const faderDiv = document.createElement('div');
                 faderDiv.className = 'fader-container';
                 const canvas = document.createElement('canvas');
@@ -447,7 +450,8 @@ function generateMatrix() {
                 
                 faderDiv.appendChild(canvas);
                 container.appendChild(faderDiv);
-                drawFader(canvas.id, 0);
+                
+                drawFader(canvas.id, vcaLevels[outIdx][inIdx] || 0);
                 setupCanvasInteraction(canvas, inIdx, outIdx);
             }
         }
