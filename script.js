@@ -32,6 +32,7 @@ const SYSEX_HEADER = [0xf0, 0x00, 0x20, 0x09, 0x0a];
 // Buffer for storing incoming Bulk Dump presets
 let dumpBuffer = {}; 
 let dumpTimeout = null;
+let expectedDumpCount = 16;
 
 // ==========================================
 // CORE MIDI OUTBOUND FUNCTIONS (IMMEDIATE)
@@ -90,10 +91,11 @@ function sendUpdateVCAs(vcaList) {
 }
 
 // Command 0x05: Request hardware to send a Bulk Dump to Editor (Bypasses 10Hz clock)
-function sendDumpRequest() {
+function sendDumpRequest(presetNum) {
     if (!midiOutPort) return;
     
     isDumpInProgress = true;
+    expectedDumpCount = (presetNum === 0x7f) ? 16 : 1;
     
     const rxButton = document.getElementById('btn-dump-rx');
     if (rxButton) {
@@ -101,7 +103,7 @@ function sendDumpRequest() {
         rxButton.innerText = "Receiving... 0%";
     }
     
-    midiOutPort.send([...SYSEX_HEADER, 0x05, 0xf7]);
+    midiOutPort.send([...SYSEX_HEADER, 0x05, presetNum, 0xf7]);
 }
 
 // Command 0x06: Transmit Bulk Dump from Editor to overwrite hardware memory
@@ -242,13 +244,13 @@ function handleIncomingMidi(message) {
         const rxButton = document.getElementById('btn-dump-rx');
         const receivedCount = Object.keys(dumpBuffer).length;
         if (rxButton) {
-            const percentage = Math.round((receivedCount / 16) * 100);
+            const percentage = Math.round((receivedCount / expectedDumpCount) * 100);
             rxButton.innerText = `Receiving... ${percentage}%`;
         }
 
         if (dumpTimeout) clearTimeout(dumpTimeout);
 
-        if (Object.keys(dumpBuffer).length === 16) {
+        if (Object.keys(dumpBuffer).length === expectedDumpCount) {
             downloadBulkDumpFile(dumpBuffer);
             dumpBuffer = {}; 
             
@@ -655,7 +657,19 @@ document.querySelectorAll('.btn-preset').forEach(btn => {
 });
 
 document.getElementById('btn-dump-rx').addEventListener('click', () => {
-    sendDumpRequest();
+    document.getElementById('receive-select').value = "all";
+    document.getElementById('receive-modal').classList.remove('hidden');
+});
+
+document.getElementById('btn-receive-cancel').addEventListener('click', () => {
+    document.getElementById('receive-modal').classList.add('hidden');
+});
+
+document.getElementById('btn-receive-confirm').addEventListener('click', () => {
+    const selection = document.getElementById('receive-select').value;
+    const presetVal = (selection === 'all') ? 0x7F : parseInt(selection, 10);
+    sendDumpRequest(presetVal);
+    document.getElementById('receive-modal').classList.add('hidden');
 });
 
 function downloadBulkDumpFile(bulkData) {
