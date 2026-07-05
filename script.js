@@ -9,6 +9,8 @@ let midiAccess = null;
 let midiInPort = null;
 let midiOutPort = null;
 let isDumpInProgress = false;
+let pendingSaveFileHandle = null;
+let pendingSaveFilename = null;
 
 // Communication strategy variables
 let isMonitoringActive = false;
@@ -665,26 +667,84 @@ document.getElementById('btn-receive-cancel').addEventListener('click', () => {
     document.getElementById('receive-modal').classList.add('hidden');
 });
 
-document.getElementById('btn-receive-confirm').addEventListener('click', () => {
-    const selection = document.getElementById('receive-select').value;
-    const presetVal = (selection === 'all') ? 0x7F : parseInt(selection, 10);
-    sendDumpRequest(presetVal);
-    document.getElementById('receive-modal').classList.add('hidden');
-});
-
-function downloadBulkDumpFile(bulkData) {
-    bulkData.labels = getSavedLabels();
-    const blob = new Blob([JSON.stringify(bulkData, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+function getSuggestedFilename() {
     const now = new Date();
     const formattedDate = `${String(now.getDate()).padStart(2, '0')}_${String(now.getMonth() + 1).padStart(2, '0')}_${now.getFullYear()}`;
+    return `VCATRIX_BULK_${formattedDate}.vca`;
+}
+
+document.getElementById('btn-receive-confirm').addEventListener('click', async () => {
+    const selection = document.getElementById('receive-select').value;
+    const presetVal = (selection === 'all') ? 0x7F : parseInt(selection, 10);
+    
+    const defaultFilename = getSuggestedFilename();
+    pendingSaveFileHandle = null;
+    pendingSaveFilename = null;
+    
+    if ('showSaveFilePicker' in window) {
+        try {
+            pendingSaveFileHandle = await window.showSaveFilePicker({
+                suggestedName: defaultFilename,
+                types: [{
+                    description: 'VCATRIX Data File',
+                    accept: {
+                        'application/json': ['.vca', '.json']
+                    }
+                }]
+            });
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                console.log('Save operations aborted by user.');
+                return; // Cancel clicked in native dialog, abort the whole dump
+            }
+            console.warn('showSaveFilePicker failed, falling back to prompt:', err);
+        }
+    }
+    
+    if (!pendingSaveFileHandle) {
+        let filename = prompt("Enter a filename for your backup:", defaultFilename);
+        if (filename === null) return; // Cancel clicked in prompt, abort the whole dump
+        if (!filename.trim()) {
+            filename = defaultFilename;
+        }
+        if (!filename.endsWith('.vca') && !filename.endsWith('.json')) {
+            filename += '.vca';
+        }
+        pendingSaveFilename = filename;
+    }
+    
+    document.getElementById('receive-modal').classList.add('hidden');
+    sendDumpRequest(presetVal);
+});
+
+async function downloadBulkDumpFile(bulkData) {
+    bulkData.labels = getSavedLabels();
+    const jsonString = JSON.stringify(bulkData, null, 2);
+    
+    if (pendingSaveFileHandle) {
+        try {
+            const writable = await pendingSaveFileHandle.createWritable();
+            await writable.write(jsonString);
+            await writable.close();
+            pendingSaveFileHandle = null;
+            return;
+        } catch (err) {
+            console.error('Error writing to saved file handle:', err);
+        }
+    }
+    
+    const filename = pendingSaveFilename || getSuggestedFilename();
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
     a.href = url;
-    a.download = `VCATRIX_BULK_${formattedDate}.vca`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    
+    pendingSaveFilename = null;
 }
 
 // --- TRANSMIT MODAL LOGIC ---
@@ -702,15 +762,47 @@ document.getElementById('file-upload').addEventListener('change', (e) => {
     reader.onload = (event) => {
         try {
             const bulkData = JSON.parse(event.target.result);
-            if (bulkData && typeof bulkData === 'object' && (bulkData[0] || bulkData.labels)) {
+            if (bulkData && typeof bulkData === 'object') {
+                let labelsLoaded = false;
                 if (bulkData.labels) {
                     localStorage.setItem('vcatrixLabels', JSON.stringify(bulkData.labels));
                     generateMatrix(); 
+                    labelsLoaded = true;
                 }
-                if (bulkData[0]) {
+                
+                // Scan for valid presets in the file
+                let availablePresets = [];
+                for (let i = 0; i < 16; i++) {
+                    if (bulkData[i] && Array.isArray(bulkData[i]) && bulkData[i].length === 64) {
+                        availablePresets.push(i);
+                    }
+                }
+                
+                if (availablePresets.length > 0) {
                     pendingBulkData = bulkData;
-                    document.getElementById('transmit-select').value = "all"; 
+                    const select = document.getElementById('transmit-select');
+                    select.innerHTML = ''; // Clear existing hardcoded options
+                    
+                    if (availablePresets.length > 1) {
+                        const allOption = document.createElement('option');
+                        allOption.value = "all";
+                        allOption.text = "All Presets";
+                        select.add(allOption);
+                    }
+                    
+                    availablePresets.forEach(presetIdx => {
+                        const option = document.createElement('option');
+                        option.value = presetIdx;
+                        option.text = `Preset ${presetIdx + 1}`;
+                        select.add(option);
+                    });
+                    
+                    select.value = select.options[0].value;
                     document.getElementById('transmit-modal').classList.remove('hidden');
+                } else if (labelsLoaded) {
+                    alert("Labels loaded and updated successfully.");
+                } else {
+                    alert("Invalid File Format: No valid presets or labels found.");
                 }
             } else {
                 alert("Invalid File Format.");
