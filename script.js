@@ -424,24 +424,24 @@ function generateMatrix() {
             if (row === 0 && col === 0) {
                 container.appendChild(document.createElement('div'));
             } else if (row === 0) {
-                const inIdx = col - 1;
+                const outIdx = col - 1;
                 const label = document.createElement('div');
-                label.id = `label-in-${inIdx}`;
+                label.id = `label-out-${outIdx}`;
                 label.className = 'axis-label top';
-                label.innerText = savedLabels[label.id] || `IN ${col}`;
+                label.innerText = savedLabels[label.id] || `OUT ${col}`;
                 makeHeaderEditable(label);
                 container.appendChild(label);
             } else if (col === 0) {
-                const outIdx = row - 1;
+                const inIdx = row - 1;
                 const label = document.createElement('div');
-                label.id = `label-out-${outIdx}`;
+                label.id = `label-in-${inIdx}`;
                 label.className = 'axis-label left';
-                label.innerText = savedLabels[label.id] || `OUT ${row}`;
+                label.innerText = savedLabels[label.id] || `IN ${row}`;
                 makeHeaderEditable(label);
                 container.appendChild(label);
             } else {
-                const inIdx = col - 1;
-                const outIdx = row - 1;
+                const inIdx = row - 1;
+                const outIdx = col - 1;
                 
                 const faderDiv = document.createElement('div');
                 faderDiv.className = 'fader-container';
