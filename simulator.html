@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VCATRIX Simulator — Alyseum</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-page:    #05050e;
+            --bg-panel:   #0a0a18;
+            --bg-card:    #0f0f20;
+            --bg-cell:    #17172a;
+            --bg-cell-h:  #1e1e38;
+            --cyan:   #00d4ff;
+            --green:  #00ff88;
+            --orange: #ffaa00;
+            --red:    #ff4466;
+            --txt:    #dde0ff;
+            --txt2:   #7777aa;
+            --txt3:   #33334a;
+            --border: rgba(80,80,160,0.18);
+            --b-cyan: rgba(0,212,255,0.35);
+            --r:  12px;
+            --rs: 6px;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg-page);
+            color: var(--txt);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            padding: 24px 28px;
+            line-height: 1.5;
+        }
+        .app-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid var(--border);
+        }
+        .title-block h1 { font-size: 20px; font-weight: 700; letter-spacing: 0.04em; }
+        .title-block h1 em { color: var(--cyan); font-style: normal; }
+        .title-block p { font-size: 11px; color: var(--txt2); margin-top: 3px; letter-spacing: 0.12em; text-transform: uppercase; }
+        .badge {
+            display: flex; align-items: center; gap: 8px;
+            padding: 7px 16px; border-radius: 20px;
+            border: 1px solid var(--border); background: var(--bg-panel);
+            font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+            text-transform: uppercase; color: var(--txt2); transition: all 0.3s;
+        }
+        .badge.connected { border-color: rgba(0,255,136,0.35); color: var(--green); }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--txt3); transition: all 0.3s; }
+        .badge.connected .dot { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s ease-in-out infinite; }
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 20px; }
+        .section-label {
+            font-size: 9px; font-weight: 700; letter-spacing: 0.18em;
+            text-transform: uppercase; color: var(--txt2);
+            display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+        }
+        .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+        .setup-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+        .port-group { display: flex; align-items: center; gap: 10px; }
+        .port-group label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt2); white-space: nowrap; }
+        .port-group select {
+            background: var(--bg-cell); border: 1px solid var(--border); border-radius: var(--rs);
+            color: var(--txt); padding: 7px 28px 7px 10px;
+            font-family: 'JetBrains Mono', monospace; font-size: 11px; min-width: 200px;
+            cursor: pointer; appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='5' viewBox='0 0 10 5'%3E%3Cpath d='M0 0l5 5 5-5z' fill='%237777aa'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 10px center; transition: border-color 0.2s;
+        }
+        .port-group select:focus { outline: none; border-color: var(--cyan); }
+        .btn {
+            padding: 8px 20px; border-radius: var(--rs);
+            font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700;
+            letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-cyan { border: 1px solid var(--cyan); background: rgba(0,212,255,0.08); color: var(--cyan); }
+        .btn-cyan:hover:not(:disabled) { background: rgba(0,212,255,0.18); box-shadow: 0 0 18px rgba(0,212,255,0.25); }
+        .btn-dim { border: 1px solid var(--border); background: transparent; color: var(--txt2); }
+        .btn-dim:hover { border-color: var(--txt2); color: var(--txt); }
+        .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .setup-note { margin-left: auto; font-size: 11px; color: var(--txt3); }
+        .setup-note em { color: var(--orange); font-style: normal; }
+        .arrow-in  { color: var(--cyan);  font-size: 14px; }
+        .arrow-out { color: var(--green); font-size: 14px; }
+        .main-grid { display: grid; grid-template-columns: 1fr 288px; gap: 16px; margin-bottom: 16px; align-items: start; }
+        #live-info { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+        .info-pill {
+            display: flex; align-items: center; gap: 6px;
+            background: var(--bg-cell); border: 1px solid var(--border);
+            border-radius: 20px; padding: 4px 12px; font-size: 11px; color: var(--txt2);
+        }
+        .info-pill strong { color: var(--txt); font-weight: 600; }
+        .modified-pill { border-color: var(--orange) !important; color: var(--orange) !important; }
+        .vca-wrap { overflow-x: auto; }
+        .vca-grid { display: inline-grid; grid-template-columns: 38px repeat(8, 1fr); grid-template-rows: auto repeat(8, 1fr); gap: 3px; min-width: 100%; }
+        .gl { display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; color: var(--txt2); letter-spacing: 0.08em; }
+        .gl.col-lbl { padding-bottom: 4px; }
+        .gl.row-lbl { justify-content: flex-end; padding-right: 6px; }
+        .vca-cell {
+            position: relative; min-width: 46px; min-height: 46px; border-radius: 5px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: default; border: 1px solid rgba(0,0,0,0.4);
+            overflow: hidden; transition: transform 0.12s, box-shadow 0.12s;
+        }
+        .vca-cell:hover { transform: scale(1.1); z-index: 20; border-color: rgba(255,255,255,0.25); }
+        .vca-cell-val { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.88); text-shadow: 0 1px 4px rgba(0,0,0,0.9); z-index: 1; }
+        .vca-cell-addr { position: absolute; top: 2px; right: 3px; font-family: 'JetBrains Mono', monospace; font-size: 7px; color: rgba(255,255,255,0.22); }
+        @keyframes flash { 0% { box-shadow: 0 0 20px rgba(0,255,136,0.9), inset 0 0 12px rgba(0,255,136,0.25); } 100% { box-shadow: none; } }
+        .vca-cell.flash { animation: flash 0.5s ease-out; }
+        .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 12px; }
+        .preset-slot { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--bg-cell); border: 1px solid var(--border); border-radius: var(--rs); cursor: pointer; transition: all 0.18s; }
+        .preset-slot:hover { background: var(--bg-cell-h); border-color: rgba(120,120,200,0.35); }
+        .preset-slot.active { border-color: var(--cyan); background: rgba(0,212,255,0.06); box-shadow: 0 0 14px rgba(0,212,255,0.12); }
+        .pnum { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--txt2); min-width: 18px; text-align: center; }
+        .preset-slot.active .pnum { color: var(--cyan); }
+        .thumb { display: grid; grid-template-columns: repeat(8, 3px); grid-template-rows: repeat(8, 3px); gap: 0.5px; flex-shrink: 0; }
+        .tc { width: 3px; height: 3px; border-radius: 0.5px; }
+        .pinfo { flex: 1; font-size: 10px; color: var(--txt2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .log-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+        .log-header .section-label { margin-bottom: 0; flex: 1; }
+        .log-wrap { height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; scrollbar-width: thin; scrollbar-color: var(--bg-cell-h) transparent; }
+        .log-wrap::-webkit-scrollbar { width: 4px; }
+        .log-wrap::-webkit-scrollbar-thumb { background: var(--bg-cell-h); border-radius: 2px; }
+        .log-entry { display: grid; grid-template-columns: 82px 52px 1fr; gap: 10px; padding: 3px 8px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; line-height: 1.5; animation: slide-in 0.18s ease-out; }
+        @keyframes slide-in { from { opacity:0; transform: translateX(-6px); } to { opacity:1; transform: translateX(0); } }
+        .log-entry:hover { background: rgba(255,255,255,0.025); }
+        .log-time { color: var(--txt3); font-size: 10px; align-self: center; }
+        .log-tag { font-weight: 700; font-size: 10px; letter-spacing: 0.05em; align-self: center; }
+        .log-tag.rx  { color: var(--cyan); }
+        .log-tag.tx  { color: var(--green); }
+        .log-tag.cmd { color: var(--orange); }
+        .log-tag.err { color: var(--red); }
+        .log-tag.inf { color: var(--txt2); }
+        .log-msg { color: var(--txt); }
+        .log-hex { color: var(--txt2); font-size: 10px; display: block; margin-top: 1px; }
+        .warn-box { background: rgba(255,68,102,0.08); border: 1px solid rgba(255,68,102,0.35); border-radius: var(--rs); padding: 12px 16px; font-size: 13px; color: var(--red); }
+        .warn-box strong { color: #ff6688; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+<div class="app">
+    <header class="app-header">
+        <div class="title-block">
+            <h1><em>ALYSEUM</em> &mdash; VCATRIX Simulator</h1>
+            <p>SysEx Hardware Emulator &middot; Responds to all 6 commands (0x01&ndash;0x06)</p>
+        </div>
+        <div id="badge" class="badge">
+            <div class="dot"></div>
+            <span id="badge-txt">Disconnected</span>
+        </div>
+    </header>
+
+    <div id="setup-card" class="card" style="margin-bottom:16px;">
+        <div class="section-label">MIDI Connection</div>
+        <div id="browser-warning" class="warn-box hidden">
+            <strong>MIDI Error:</strong> Web MIDI (SysEx) is not supported by this browser.
+            Please use <strong>Google Chrome</strong> or <strong>Brave</strong>.
+        </div>
+        <div id="midi-setup-row" class="setup-row">
+            <div class="port-group">
+                <span class="arrow-in">&#10132;</span>
+                <label>FROM EDITOR (In)</label>
+                <select id="sel-in"><option value="">Please Select</option></select>
+            </div>
+            <div class="port-group">
+                <span class="arrow-out">&#10132;</span>
+                <label>TO EDITOR (Out)</label>
+                <select id="sel-out"><option value="">Please Select</option></select>
+            </div>
+            <button id="btn-connect" class="btn btn-cyan" disabled>Connect</button>
+            <p class="setup-note">macOS: use <em>IAC Driver</em> virtual ports &mdash; swap In/Out vs. the Editor</p>
+        </div>
+    </div>
+
+    <div class="main-grid">
+        <div class="card">
+            <div class="section-label">Live VCA State</div>
+            <div id="live-info">
+                <div class="info-pill">Preset&nbsp;<strong id="pill-preset">None</strong></div>
+                <div class="info-pill">Active&nbsp;<strong id="pill-active">0</strong>&nbsp;/ 64</div>
+                <div class="info-pill">Max&nbsp;<strong id="pill-max">0</strong></div>
+                <div class="info-pill">Avg&nbsp;<strong id="pill-avg">0</strong></div>
+                <div class="info-pill modified-pill hidden" id="pill-modified">&#9889; Modified</div>
+            </div>
+            <div class="vca-wrap">
+                <div id="vca-grid" class="vca-grid"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-label">Preset Memory (x16)</div>
+            <div id="preset-grid" class="preset-grid"></div>
+            <button id="btn-reset-mem" class="btn btn-dim" style="width:100%;font-size:10px;">Reset All Presets to 0</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="log-header">
+            <div class="section-label">Activity Log</div>
+            <button id="btn-clear-log" class="btn btn-dim" style="padding:5px 14px;font-size:10px;">Clear</button>
+        </div>
+        <div id="log-wrap" class="log-wrap"></div>
+    </div>
+</div>
+
+<script>
+const SYSEX_HEADER = [0xF0, 0x00, 0x20, 0x09, 0x0A];
+const NUM_PRESETS  = 16;
+const NUM_VCAS     = 64;
+const STAGGER_MS   = 50;
+
+// Hardware memory
+const presets  = Array.from({length: NUM_PRESETS}, () => new Uint8Array(NUM_VCAS));
+const liveVCA  = new Uint8Array(NUM_VCAS);
+let activePreset   = -1;
+let isLiveModified = false;
+
+// MIDI
+let midiAccess = null;
+let midiIn     = null;
+let midiOut    = null;
+
+// ─── Colour ───────────────────────────────────────────────────
+function vcaColor(v) {
+    if (v === 0) return '#17172a';
+    const l = Math.round((v / 127) * 40) + 8;
+    return 'hsl(165, 100%, ' + l + '%)';
+}
+function vcaGlow(v) {
+    if (v < 60) return 'none';
+    const alpha = ((v - 60) / 67) * 0.65;
+    const blur  = Math.round((v / 127) * 14);
+    return '0 0 ' + blur + 'px rgba(0,255,136,' + alpha.toFixed(2) + ')';
+}
+
+// ─── Build VCA grid ───────────────────────────────────────────
+function buildVcaGrid() {
+    const grid = document.getElementById('vca-grid');
+    grid.innerHTML = '';
+    // corner
+    grid.appendChild(mk('div', 'gl'));
+    // column headers
+    for (let i = 0; i < 8; i++) grid.appendChild(mkTxt('div', 'gl col-lbl', 'IN ' + (i+1)));
+    // rows
+    for (let out = 0; out < 8; out++) {
+        grid.appendChild(mkTxt('div', 'gl row-lbl', 'OUT ' + (out+1)));
+        for (let inp = 0; inp < 8; inp++) {
+            const addr = out * 8 + inp;
+            const cell = mk('div', 'vca-cell');
+            cell.id    = 'vc-' + addr;
+            cell.title = 'OUT' + (out+1) + ' x IN' + (inp+1) + '  addr:0x' + addr.toString(16).padStart(2,'0').toUpperCase();
+            const addrLbl = mkTxt('div', 'vca-cell-addr', addr.toString(16).padStart(2,'0').toUpperCase());
+            const valLbl  = mk('div', 'vca-cell-val');
+            valLbl.id = 'vcv-' + addr;
+            cell.appendChild(addrLbl);
+            cell.appendChild(valLbl);
+            grid.appendChild(cell);
+        }
+    }
+    refreshVcaGrid();
+}
+
+function buildPresetGrid() {
+    const pg = document.getElementById('preset-grid');
+    pg.innerHTML = '';
+    for (let p = 0; p < NUM_PRESETS; p++) {
+        const slot  = mk('div', 'preset-slot');
+        slot.id     = 'ps-' + p;
+        const num   = mkTxt('div', 'pnum', String(p+1));
+        const thumb = mk('div', 'thumb');
+        thumb.id    = 'th-' + p;
+        for (let i = 0; i < 64; i++) {
+            const tc = mk('div', 'tc');
+            tc.id = 'tc-' + p + '-' + i;
+            thumb.appendChild(tc);
+        }
+        const info = mkTxt('div', 'pinfo', 'empty');
+        info.id = 'pi-' + p;
+        slot.appendChild(num);
+        slot.appendChild(thumb);
+        slot.appendChild(info);
+        pg.appendChild(slot);
+        refreshPresetSlot(p);
+    }
+}
+
+// ─── Grid refresh ─────────────────────────────────────────────
+function refreshVcaGrid(flashAddrs) {
+    const flashSet = new Set(flashAddrs || []);
+    let active = 0, sum = 0, maxV = 0;
+    for (let addr = 0; addr < NUM_VCAS; addr++) {
+        const v   = liveVCA[addr];
+        const c   = document.getElementById('vc-' + addr);
+        const vl  = document.getElementById('vcv-' + addr);
+        if (!c) continue;
+        c.style.background = vcaColor(v);
+        c.style.boxShadow  = vcaGlow(v);
+        vl.textContent = v > 0 ? v : '';
+        if (flashSet.has(addr)) {
+            c.classList.remove('flash');
+            void c.offsetWidth;
+            c.classList.add('flash');
+        }
+        if (v > 0) { active++; sum += v; }
+        if (v > maxV) maxV = v;
+    }
+    document.getElementById('pill-active').textContent  = active;
+    document.getElementById('pill-max').textContent     = maxV;
+    document.getElementById('pill-avg').textContent     = active > 0 ? Math.round(sum / active) : 0;
+    document.getElementById('pill-preset').textContent  = activePreset >= 0 ? 'P' + (activePreset+1) : 'None';
+    document.getElementById('pill-modified').classList.toggle('hidden', !isLiveModified);
+}
+
+function refreshPresetSlot(p) {
+    const slot = document.getElementById('ps-' + p);
+    const info = document.getElementById('pi-' + p);
+    if (!slot) return;
+    slot.classList.toggle('active', p === activePreset && !isLiveModified);
+    const data = presets[p];
+    let nz = 0, sum = 0;
+    for (let i = 0; i < 64; i++) {
+        const v  = data[i];
+        const tc = document.getElementById('tc-' + p + '-' + i);
+        if (tc) tc.style.background = vcaColor(v);
+        if (v > 0) { nz++; sum += v; }
+    }
+    if (nz === 0) {
+        info.textContent = 'empty';
+        info.style.color = 'var(--txt3)';
+    } else {
+        info.textContent = nz + ' VCAs  avg ' + Math.round(sum/nz);
+        info.style.color = 'var(--txt2)';
+    }
+}
+
+function refreshAllPresets() { for (let p = 0; p < NUM_PRESETS; p++) refreshPresetSlot(p); }
+
+// ─── Command handlers ─────────────────────────────────────────
+function handleClearAll() {
+    liveVCA.fill(0);
+    if (activePreset >= 0) {
+        presets[activePreset].fill(0);
+    }
+    isLiveModified = (activePreset >= 0);
+    refreshVcaGrid();
+    refreshAllPresets();
+    addLog('cmd', 'CLEAR', 'All 64 VCAs reset to 0 (cmd 0x01)');
+}
+
+function handleSetPreset(pb) {
+    const p = Math.max(0, Math.min(15, pb));
+    activePreset   = p;
+    isLiveModified = false;
+    liveVCA.set(presets[p]);
+    refreshVcaGrid();
+    refreshAllPresets();
+    addLog('cmd', 'PRESET', 'Loaded preset ' + (p+1) + ' into live state (cmd 0x02)');
+}
+
+function handleDisplayRequest() {
+    if (!midiOut) { addLog('err','ERR','Display Request: no MIDI OUT'); return; }
+    const msg = SYSEX_HEADER.concat(Array.from([0x10]), Array.from(liveVCA), [0xF7]);
+    midiOut.send(msg);
+    addLog('tx', '0x10', 'DISPLAY response sent — 64 VCA values (cmd 0x03)', hexStr(msg, 28));
+}
+
+function handleUpdateVCAs(data) {
+    const updated = [];
+    let i = 6;
+    while (i < data.length) {
+        const a = data[i];
+        if (a === undefined || a === 0xF7) break;
+        if (i + 1 >= data.length) break;
+        const v = data[i+1];
+        if (v === 0xF7) break;
+        if (a < 64) { 
+            liveVCA[a] = v; 
+            if (activePreset >= 0) {
+                presets[activePreset][a] = v;
+            }
+            updated.push(a); 
+        }
+        i += 2;
+    }
+    isLiveModified = true;
+    refreshVcaGrid(updated);
+    refreshAllPresets();
+    const desc = updated.map(function(a){ return '[' + a.toString(16).padStart(2,'0').toUpperCase() + ']=' + liveVCA[a]; }).join('  ');
+    addLog('cmd', 'UPDATE', updated.length + ' VCA(s) updated (cmd 0x04)  ' + desc);
+}
+
+function handleDumpRequest(pb) {
+    if (!midiOut) { addLog('err','ERR','Dump Request: no MIDI OUT'); return; }
+    if (pb === 0x7F) {
+        addLog('cmd','DUMP RQ','All 16 presets requested (cmd 0x05)');
+        for (var p = 0; p < NUM_PRESETS; p++) {
+            (function(pp){ setTimeout(function(){ sendPresetDump(pp); }, pp * STAGGER_MS); })(p);
+        }
+    } else {
+        var p2 = Math.max(0, Math.min(15, pb));
+        addLog('cmd','DUMP RQ','Preset ' + (p2+1) + ' requested (cmd 0x05)');
+        sendPresetDump(p2);
+    }
+}
+
+function sendPresetDump(p) {
+    var msg = SYSEX_HEADER.concat([0x11, p], Array.from(presets[p]), [0xF7]);
+    midiOut.send(msg);
+    var nz = Array.from(presets[p]).filter(function(v){ return v > 0; }).length;
+    addLog('tx','0x11','DUMP sent — preset ' + (p+1) + ' (' + nz + ' active VCAs)', hexStr(msg, 28));
+}
+
+function handleDumpReceive(data) {
+    if (data.length < 72) { addLog('err','ERR','DUMP RX too short: ' + data.length + ' bytes (need 72+)'); return; }
+    var p = data[6];
+    if (p >= NUM_PRESETS) { addLog('err','ERR','DUMP RX: invalid preset ' + p); return; }
+    for (var i = 0; i < 64; i++) presets[p][i] = Math.min(127, data[7+i]);
+    if (p === activePreset) {
+        liveVCA.set(presets[p]);
+        refreshVcaGrid();
+    }
+    refreshPresetSlot(p);
+    var nz = Array.from(presets[p]).filter(function(v){ return v > 0; }).length;
+    addLog('cmd','DUMP RX','Preset ' + (p+1) + ' written to memory (cmd 0x06)  ' + nz + ' active VCAs');
+}
+
+// ─── MIDI router ──────────────────────────────────────────────
+function onMidiMessage(event) {
+    var d = event.data;
+    if (d[0] !== 0xF0) return;
+    if (d.length < 7) return;
+    if (d[1] !== 0x00 || d[2] !== 0x20 || d[3] !== 0x09) {
+        addLog('inf','SYSEX','Unknown SysEx: ' + hexStr(d, 20));
+        return;
+    }
+    if (d[4] !== 0x0A) {
+        addLog('inf','SYSEX','Wrong device ID 0x' + d[4].toString(16).toUpperCase());
+        return;
+    }
+    var cmd = d[5];
+    var names = {1:'Clear All',2:'Set Preset',3:'Display Req',4:'Update VCAs',5:'Dump Req',6:'Dump Receive'};
+    addLog('rx','0x'+cmd.toString(16).padStart(2,'0').toUpperCase(), names[cmd] || 'Unknown cmd', hexStr(d, 32));
+    switch(cmd) {
+        case 0x01: handleClearAll();        break;
+        case 0x02: handleSetPreset(d[6]);   break;
+        case 0x03: handleDisplayRequest();  break;
+        case 0x04: handleUpdateVCAs(d);     break;
+        case 0x05: handleDumpRequest(d[6]); break;
+        case 0x06: handleDumpReceive(d);    break;
+        default: addLog('err','ERR','Unhandled cmd 0x'+cmd.toString(16).toUpperCase());
+    }
+}
+
+// ─── MIDI init ────────────────────────────────────────────────
+async function initMidi() {
+    try {
+        midiAccess = await navigator.requestMIDIAccess({ sysex: true });
+        populatePorts();
+        midiAccess.onstatechange = populatePorts;
+        addLog('inf','MIDI','Web MIDI API ready (SysEx enabled)');
+    } catch(err) {
+        document.getElementById('browser-warning').classList.remove('hidden');
+        document.getElementById('midi-setup-row').classList.add('hidden');
+        addLog('err','ERR','MIDI init failed: ' + err.message);
+    }
+}
+
+function populatePorts() {
+    var si = document.getElementById('sel-in');
+    var so = document.getElementById('sel-out');
+    var pi = si.value, po = so.value;
+    si.innerHTML = '<option value="">Please Select</option>';
+    so.innerHTML = '<option value="">Please Select</option>';
+    for (var port of midiAccess.inputs.values())  si.add(new Option(port.name, port.id));
+    for (var port of midiAccess.outputs.values()) so.add(new Option(port.name, port.id));
+    if (pi) si.value = pi;
+    if (po) so.value = po;
+    checkBtn();
+}
+
+function checkBtn() {
+    document.getElementById('btn-connect').disabled =
+        !document.getElementById('sel-in').value || !document.getElementById('sel-out').value;
+}
+
+function connect() {
+    if (midiIn) midiIn.onmidimessage = null;
+    midiIn  = midiAccess.inputs.get(document.getElementById('sel-in').value);
+    midiOut = midiAccess.outputs.get(document.getElementById('sel-out').value);
+    if (!midiIn || !midiOut) { addLog('err','ERR','Could not acquire MIDI ports'); return; }
+    midiIn.onmidimessage = onMidiMessage;
+    var badge = document.getElementById('badge');
+    badge.classList.add('connected');
+    document.getElementById('badge-txt').textContent = 'Connected';
+    document.getElementById('btn-connect').textContent = 'Reconnect';
+    addLog('inf','MIDI','Connected — IN: "' + midiIn.name + '"  OUT: "' + midiOut.name + '"');
+}
+
+// ─── Log ──────────────────────────────────────────────────────
+function addLog(type, tag, msg, hex) {
+    var wrap  = document.getElementById('log-wrap');
+    var entry = mk('div', 'log-entry');
+    var now   = new Date();
+    var ts    = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds()) + '.' + String(now.getMilliseconds()).padStart(3,'0');
+    entry.appendChild(mkTxt('div','log-time', ts));
+    entry.appendChild(mkTxt('div','log-tag ' + type, '[' + tag + ']'));
+    var msgEl = mk('div','log-msg');
+    msgEl.textContent = msg;
+    if (hex) {
+        var hexEl = mk('span','log-hex');
+        hexEl.textContent = hex;
+        msgEl.appendChild(hexEl);
+    }
+    entry.appendChild(msgEl);
+    wrap.appendChild(entry);
+    wrap.scrollTop = wrap.scrollHeight;
+    while (wrap.children.length > 200) wrap.removeChild(wrap.firstChild);
+}
+
+// ─── Helpers ──────────────────────────────────────────────────
+function hexStr(data, maxB) {
+    maxB = maxB || 64;
+    var arr = Array.from(data).slice(0, maxB);
+    var h   = arr.map(function(b){ return b.toString(16).padStart(2,'0').toUpperCase(); }).join(' ');
+    return data.length > maxB ? h + ' ...' : h;
+}
+function pad(n) { return String(n).padStart(2,'0'); }
+function mk(tag, cls) { var e = document.createElement(tag); if (cls) e.className = cls; return e; }
+function mkTxt(tag, cls, txt) { var e = mk(tag, cls); e.textContent = txt; return e; }
+
+// ─── Controls ─────────────────────────────────────────────────
+document.getElementById('sel-in').addEventListener('change', checkBtn);
+document.getElementById('sel-out').addEventListener('change', checkBtn);
+document.getElementById('btn-connect').addEventListener('click', connect);
+document.getElementById('btn-clear-log').addEventListener('click', function() {
+    document.getElementById('log-wrap').innerHTML = '';
+    addLog('inf','LOG','Log cleared.');
+});
+document.getElementById('btn-reset-mem').addEventListener('click', function() {
+    for (var p = 0; p < NUM_PRESETS; p++) presets[p].fill(0);
+    refreshAllPresets();
+    addLog('cmd','RESET','All 16 presets reset to 0 (factory state)');
+});
+
+// ─── Init ─────────────────────────────────────────────────────
+buildVcaGrid();
+buildPresetGrid();
+addLog('inf','INIT','VCATRIX Simulator ready — select MIDI ports above and click Connect');
+addLog('inf','TIP', 'Ports are REVERSED vs. the Editor: Editor MIDI OUT -> Simulator IN, Editor MIDI IN -> Simulator OUT');
+initMidi();
+</script>
+</body>
+</html>

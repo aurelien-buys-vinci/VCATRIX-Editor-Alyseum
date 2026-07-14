@@ -1,5 +1,27 @@
 // --- CONFIGURATION CONSTANTS ---
+const DEBUG_MODE = true;       // Set to false in production builds
 const CLOCK_INTERVAL_MS = 100; // Main monitoring clock interval (10 Hz)
+
+function debugLog(...args) {
+    if (DEBUG_MODE) {
+        console.log("%c[DEBUG]%c", "color: #ffaa00; font-weight: bold;", "", ...args);
+    }
+}
+
+function logMidiTx(msg) {
+    if (DEBUG_MODE) {
+        const hex = Array.from(msg).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+        console.log(`%c[MIDI TX]%c ${hex}`, "color: #0088ff; font-weight: bold;", "");
+    }
+}
+
+function logMidiRx(msg) {
+    if (DEBUG_MODE) {
+        const hex = Array.from(msg).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+        console.log(`%c[MIDI RX]%c ${hex}`, "color: #00aa00; font-weight: bold;", "");
+    }
+}
+
 const QUEUE_DELAY_MS = 90;     // Delay within the clock cycle to send queued commands
 const TX_STAGGER_MS = 50;      // Stagger delay for transmitting presets to prevent buffer overflow
 const DUMP_TIMEOUT_MS = 1000;  // Failsafe timeout for incomplete bulk dumps
@@ -11,6 +33,7 @@ let midiOutPort = null;
 let isDumpInProgress = false;
 let pendingSaveFileHandle = null;
 let pendingSaveFilename = null;
+let pendingSaveSelection = 'all';
 
 // Communication strategy variables
 let isMonitoringActive = false;
@@ -43,18 +66,24 @@ let expectedDumpCount = 16;
 
 function sendClearAllVCAImmediate() {
     if (!midiOutPort) return;
-    midiOutPort.send([...SYSEX_HEADER, 0x01, 0xf7]);
+    const message = [...SYSEX_HEADER, 0x01, 0xf7];
+    midiOutPort.send(message);
+    logMidiTx(message);
 }
 
 function sendSetPresetImmediate(presetNum) {
     if (!midiOutPort) return;
     const pt = Math.max(0, Math.min(15, presetNum));
-    midiOutPort.send([...SYSEX_HEADER, 0x02, pt, 0xf7]);
+    const message = [...SYSEX_HEADER, 0x02, pt, 0xf7];
+    midiOutPort.send(message);
+    logMidiTx(message);
 }
 
 function sendDisplayRequestImmediate() {
     if (!midiOutPort) return;
-    midiOutPort.send([...SYSEX_HEADER, 0x03, 0xf7]);
+    const message = [...SYSEX_HEADER, 0x03, 0xf7];
+    midiOutPort.send(message);
+    logMidiTx(message);
 }
 
 function sendUpdateVCAsImmediate(vcaList) {
@@ -69,6 +98,7 @@ function sendUpdateVCAsImmediate(vcaList) {
     
     message.push(0xf7);
     midiOutPort.send(message);
+    logMidiTx(message);
 }
 
 // ==========================================
@@ -105,7 +135,9 @@ function sendDumpRequest(presetNum) {
         rxButton.innerText = "Receiving... 0%";
     }
     
-    midiOutPort.send([...SYSEX_HEADER, 0x05, presetNum, 0xf7]);
+    const message = [...SYSEX_HEADER, 0x05, presetNum, 0xf7];
+    midiOutPort.send(message);
+    logMidiTx(message);
 }
 
 // Command 0x06: Transmit Bulk Dump from Editor to overwrite hardware memory
@@ -146,7 +178,8 @@ function sendBulkDumpTransmit(bulkData) {
             message.push(0xf7);
             
             midiOutPort.send(message);
-            console.log(`Preset ${presetIdx} transmitted.`);
+            logMidiTx(message);
+            debugLog(`Preset ${presetIdx} transmitted.`);
             
             completed++;
             if (txButton) {
@@ -224,6 +257,8 @@ function handleIncomingMidi(message) {
     }
     if (data[4] !== 0x0a) return;
 
+    logMidiRx(data);
+
     const type = data[5];
 
     if (type === 0x10 || type === 0x41) {
@@ -284,8 +319,10 @@ function handleIncomingMidi(message) {
 // ==========================================
 
 async function startMidi() {
+    debugLog("Initializing Web MIDI Access...");
     try {
         midiAccess = await navigator.requestMIDIAccess({ sysex: true });
+        debugLog("Web MIDI Access granted successfully.");
         populateMidiSelects();
         midiAccess.onstatechange = populateMidiSelects;
     } catch (err) {
@@ -297,6 +334,7 @@ async function startMidi() {
 }
 
 function populateMidiSelects() {
+    debugLog("Scanning MIDI devices and populating ports select dropdowns...");
     const inSelect = document.getElementById('midi-in');
     const outSelect = document.getElementById('midi-out');
     const btnConnect = document.getElementById('btn-connect'); 
@@ -332,6 +370,7 @@ function populateMidiSelects() {
 }
 
 function launchApp(isDemoMode) {
+    debugLog(`Launching application setup in ${isDemoMode ? "DEMO" : "MIDI"} mode...`);
     document.getElementById('setup-header').classList.add('hidden');
     document.getElementById('app-container').classList.remove('hidden');
     generateMatrix();
@@ -340,9 +379,9 @@ function launchApp(isDemoMode) {
     startMainClock();
     
     if (isDemoMode) {
-        console.log("Started in DEMO Mode: MIDI transmission is disabled.");
+        debugLog("Started in DEMO Mode: MIDI transmission is disabled.");
     } else {
-        console.log("MIDI Connection successfully established.");
+        debugLog("MIDI Connection successfully established.");
     }
 }
 
@@ -352,6 +391,9 @@ document.getElementById('btn-connect').addEventListener('click', () => {
     
     midiInPort = midiAccess.inputs.get(inId);
     midiOutPort = midiAccess.outputs.get(outId);
+    
+    debugLog(`Connection requested. Input: "${midiInPort ? midiInPort.name : 'none'}" (${inId}), Output: "${midiOutPort ? midiOutPort.name : 'none'}" (${outId})`);
+    
     midiInPort.onmidimessage = handleIncomingMidi;
     
     launchApp(false);
@@ -373,6 +415,7 @@ function getSavedLabels() {
 }
 
 function SaveLabel(labelId, newValue) {
+    debugLog(`Saving label - id: "${labelId}", value: "${newValue}"`);
     const labels = getSavedLabels();
     labels[labelId] = newValue;
     localStorage.setItem('vcatrixLabels', JSON.stringify(labels));    
@@ -503,6 +546,7 @@ function drawFader(canvasId, value) {
 
 function setupCanvasInteraction(canvas, inIdx, outIdx) {
     let isDragging = false;
+    let lastVal = -1;
 
     const calculateValue = (e) => {
         const rect = canvas.getBoundingClientRect();
@@ -513,20 +557,26 @@ function setupCanvasInteraction(canvas, inIdx, outIdx) {
 
     const handleMovement = (e) => {
         const val = calculateValue(e);
+        if (val === lastVal) return;
+        lastVal = val;
         const isSelected = selectedVCAs.some(v => v.inIdx === inIdx && v.outIdx === outIdx);
         
         if (isSelected && selectedVCAs.length > 0) {
             const updates = selectedVCAs.map(v => {
-                vcaLevels[v.outIdx][v.inIdx] = val;
                 vcaEditedLocally[v.outIdx][v.inIdx] = true; 
-                drawFader(v.canvasId, val);
+                if (!isMonitoringActive) {
+                    vcaLevels[v.outIdx][v.inIdx] = val;
+                    drawFader(v.canvasId, val);
+                }
                 return { address: v.inIdx + (8 * v.outIdx), value: val };
             });
             sendUpdateVCAs(updates); // Added to queue
         } else {
-            vcaLevels[outIdx][inIdx] = val;
             vcaEditedLocally[outIdx][inIdx] = true; 
-            drawFader(canvas.id, val);
+            if (!isMonitoringActive) {
+                vcaLevels[outIdx][inIdx] = val;
+                drawFader(canvas.id, val);
+            }
             sendUpdateVCAs([{ address: inIdx + (8 * outIdx), value: val }]); // Added to queue
         }
     };
@@ -548,6 +598,7 @@ function setupCanvasInteraction(canvas, inIdx, outIdx) {
             document.getElementById('btn-clear-selection').classList.toggle('hidden', selectedVCAs.length === 0);
         } else {
             isDragging = true;
+            lastVal = -1;
             handleMovement(e);
         }
     });
@@ -612,11 +663,13 @@ function resetAllColorsToGreen() {
 
 document.getElementById('btn-multi-select').addEventListener('click', (e) => {
     isMultiSelectMode = !isMultiSelectMode;
+    debugLog(`Multi-Select Mode toggled: ${isMultiSelectMode ? "ENABLED" : "DISABLED"}`);
     e.target.innerText = isMultiSelectMode ? "Multi-Select: ON" : "Multi-Select: OFF";
     e.target.classList.toggle('active', isMultiSelectMode);
 });
 
 document.getElementById('btn-clear-selection').addEventListener('click', () => {
+    debugLog(`Clearing multi-select fader selection. Count: ${selectedVCAs.length}`);
     selectedVCAs.forEach(v => document.getElementById(v.canvasId)?.parentElement.classList.remove('selected'));
     selectedVCAs = [];
     document.getElementById('btn-clear-selection').classList.add('hidden');
@@ -625,9 +678,11 @@ document.getElementById('btn-clear-selection').addEventListener('click', () => {
 document.getElementById('btn-clear').addEventListener('click', () => {
     for (let inIdx = 0; inIdx < 8; inIdx++) {
         for (let outIdx = 0; outIdx < 8; outIdx++) {
-            vcaLevels[outIdx][inIdx] = 0;
             vcaEditedLocally[outIdx][inIdx] = false;
-            drawFader(`Conn_${inIdx}_${outIdx}`, 0);
+            if (!isMonitoringActive) {
+                vcaLevels[outIdx][inIdx] = 0;
+                drawFader(`Conn_${inIdx}_${outIdx}`, 0);
+            }
         }
     }
     sendClearAllVCA(); // Added to queue
@@ -635,6 +690,7 @@ document.getElementById('btn-clear').addEventListener('click', () => {
 
 document.getElementById('btn-monitor').addEventListener('click', (e) => {
     isMonitoringActive = !isMonitoringActive;
+    debugLog(`10Hz Hardware Monitoring toggled: ${isMonitoringActive ? "ENABLED" : "DISABLED"}`);
     
     if (!isMonitoringActive) {
         e.target.innerText = "Enable monitoring (10Hz)";
@@ -651,9 +707,11 @@ document.querySelectorAll('.btn-preset').forEach(btn => {
         document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
         resetAllColorsToGreen();
+        
+        const presetNum = parseInt(e.target.getAttribute('data-preset'), 10);
+        debugLog(`Preset selected: Preset ${presetNum + 1}`);
 
         if (!midiOutPort) return;
-        const presetNum = parseInt(e.target.getAttribute('data-preset'), 10);
         sendSetPreset(presetNum); // Added to queue
     });
 });
@@ -667,17 +725,25 @@ document.getElementById('btn-receive-cancel').addEventListener('click', () => {
     document.getElementById('receive-modal').classList.add('hidden');
 });
 
-function getSuggestedFilename() {
+function getSuggestedFilename(selection) {
+    const sel = selection || pendingSaveSelection || 'all';
     const now = new Date();
     const formattedDate = `${String(now.getDate()).padStart(2, '0')}_${String(now.getMonth() + 1).padStart(2, '0')}_${now.getFullYear()}`;
-    return `VCATRIX_BULK_${formattedDate}.vca`;
+    if (sel === 'all') {
+        return `VCATRIX_BULK_ALL_${formattedDate}.vca`;
+    } else {
+        const presetNum = parseInt(sel, 10);
+        return `VCATRIX_BULK_PRESET_${presetNum + 1}_${formattedDate}.vca`;
+    }
 }
 
 document.getElementById('btn-receive-confirm').addEventListener('click', async () => {
     const selection = document.getElementById('receive-select').value;
+    pendingSaveSelection = selection;
     const presetVal = (selection === 'all') ? 0x7F : parseInt(selection, 10);
+    debugLog(`Receive Bulk Dump confirmed. Selection: ${selection === 'all' ? 'All Presets' : 'Preset ' + (presetVal + 1)}`);
     
-    const defaultFilename = getSuggestedFilename();
+    const defaultFilename = getSuggestedFilename(selection);
     pendingSaveFileHandle = null;
     pendingSaveFilename = null;
     
@@ -694,7 +760,7 @@ document.getElementById('btn-receive-confirm').addEventListener('click', async (
             });
         } catch (err) {
             if (err.name === 'AbortError') {
-                console.log('Save operations aborted by user.');
+                debugLog('Save operations aborted by user.');
                 return; // Cancel clicked in native dialog, abort the whole dump
             }
             console.warn('showSaveFilePicker failed, falling back to prompt:', err);
@@ -757,6 +823,7 @@ document.getElementById('btn-dump-tx').addEventListener('click', () => {
 document.getElementById('file-upload').addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    debugLog(`File selected for upload: "${file.name}" (${file.size} bytes). Reading...`);
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -824,6 +891,7 @@ document.getElementById('btn-transmit-confirm').addEventListener('click', () => 
     if (!pendingBulkData) return;
     
     const selection = document.getElementById('transmit-select').value;
+    debugLog(`Transmit Bulk Dump confirmed. Target selection: ${selection === 'all' ? 'All Presets' : 'Preset ' + (parseInt(selection, 10) + 1)}`);
     
     if (selection === 'all') {
         sendBulkDumpTransmit(pendingBulkData);
