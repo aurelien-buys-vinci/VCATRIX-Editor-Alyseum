@@ -23,7 +23,7 @@ function logMidiRx(msg) {
 }
 
 const QUEUE_DELAY_MS = 90;     // Delay within the clock cycle to send queued commands
-const TX_STAGGER_MS = 50;      // Stagger delay for transmitting presets to prevent buffer overflow
+const TX_STAGGER_MS = 100;      // Stagger delay for transmitting presets to prevent buffer overflow
 const DUMP_TIMEOUT_MS = 1000;  // Failsafe timeout for incomplete bulk dumps
 
 // --- GLOBAL STATE VARIABLES ---
