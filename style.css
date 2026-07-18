@@ -1,10 +1,20 @@
-/* Base Styles */
-body {
+/* Base Styles and Viewport Lockdown */
+html, body {
     margin: 0;
-    padding: 20px;
+    padding: 0;
+    width: 100%;
+    height: 100%;
     font-family: Arial, sans-serif;
     background-color: #3d3d3d;
     color: #e0e0e0;
+    overflow: hidden; 
+    box-sizing: border-box;
+}
+
+body {
+    padding: 2vh 2vw;
+    display: flex;
+    flex-direction: column;
 }
 
 /* --- Startup Screen Configuration --- */
@@ -153,25 +163,40 @@ body {
 /* --- Main Layout --- */
 #app-container {
     display: flex;
-    gap: 30px;
-    max-width: 1300px;
-    margin: 0 auto;
+    width: 100%;
+    height: 100%;
+    gap: 2vw;
+    box-sizing: border-box;
     align-items: stretch; 
+    overflow: hidden;
 }
 
 #fader-section {
+    flex: 1;
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 1.5vh;
     display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 /* --- Sidebar Configuration --- */
 #sidebar {
-    flex: 1;
+    flex: 0 0 25%;
+    width: 25%;
     background-color: #2a2a2a;
     border: 1px solid #444;
-    padding: 20px;
+    border-radius: 8px;
+    padding: 2vh 1.5vw;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 2vh;
+    box-sizing: border-box;
+    overflow-y: auto;
 }
 
 #sidebar h2 {
@@ -196,6 +221,7 @@ button {
     font-weight: bold;
     transition: all 0.2s;
     width: 100%;
+    box-sizing: border-box;
 }
 
 button:hover:not(:disabled) { background-color: #cc0000; }
@@ -230,25 +256,30 @@ button:disabled { background-color: #666; border-color: #555; cursor: not-allowe
 /* Visual feedback for the active preset button */
 .preset-grid button.active { background-color: #00aa00; border-color: #00ff00; }
 
-/* --- Compact Matrix Layout --- */
+/* --- Adaptive Matrix Layout --- */
 #matrix-container {
     display: grid;
-    /* Changed to minmax so it's at least 40px/30px, but expands if text is longer */
-    grid-template-columns: minmax(40px, auto) repeat(8, 101px); 
-    grid-template-rows: minmax(30px, auto) repeat(8, 101px);
-    gap: 0;
+    grid-template-columns: max-content repeat(8, 1fr); 
+    grid-template-rows: max-content repeat(8, 1fr);
+    width: 100%; 
+    height: 100%;
+    max-width: min(70vw, 80vh); 
+    max-height: min(70vw, 80vh);
+    aspect-ratio: 1 / 1; 
+    margin: auto;
+    box-sizing: border-box;
 }
 
 .axis-label {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
+    font-size: clamp(10px, 0.6vw + 0.6vh, 14px);
     font-weight: bold;
     color: #ccc;
     background-color: #333;
     white-space: nowrap; /* Prevent text from wrapping to a new line */
-    padding: 0 10px; /* Add horizontal padding so text doesn't touch the borders */
+    padding: 4px 8px; /* Fit text exactly with neat spacing */
 }
 
 /* Remove the ugly default blue outline when editing and add a subtle focus state */
@@ -274,9 +305,20 @@ button:disabled { background-color: #666; border-color: #555; cursor: not-allowe
     display: flex;
     align-items: center;
     justify-content: center;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
 }
 
-canvas { cursor: pointer; }
+canvas {
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    aspect-ratio: 1 / 1;
+    display: block;
+}
 
 /* ==========================================
    MODAL POP-UP STYLES

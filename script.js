@@ -459,6 +459,38 @@ function makeHeaderEditable(headerElement) {
 // UI GENERATION & INTERACTION
 // ==========================================
 
+let resizeObserver = null;
+
+function resizeAndDrawAll() {
+    const canvases = document.querySelectorAll('.fader-container canvas');
+    canvases.forEach(canvas => {
+        const rect = canvas.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            
+            const parts = canvas.id.split('_');
+            const inIdx = parseInt(parts[1], 10);
+            const outIdx = parseInt(parts[2], 10);
+            drawFader(canvas.id, vcaLevels[outIdx][inIdx] || 0);
+        }
+    });
+}
+
+function setupResizeObserver() {
+    if (resizeObserver) {
+        resizeObserver.disconnect();
+    }
+    const container = document.getElementById('matrix-container');
+    if (container) {
+        resizeObserver = new ResizeObserver(() => {
+            resizeAndDrawAll();
+        });
+        resizeObserver.observe(container);
+    }
+}
+
 function generateMatrix() {
     const container = document.getElementById('matrix-container');
     container.innerHTML = '';
@@ -492,25 +524,30 @@ function generateMatrix() {
                 faderDiv.className = 'fader-container';
                 const canvas = document.createElement('canvas');
                 canvas.id = `Conn_${inIdx}_${outIdx}`;
-                canvas.width = 101;
-                canvas.height = 101;
                 
                 faderDiv.appendChild(canvas);
                 container.appendChild(faderDiv);
                 
-                drawFader(canvas.id, vcaLevels[outIdx][inIdx] || 0);
                 setupCanvasInteraction(canvas, inIdx, outIdx);
             }
         }
     }
+    
+    // Draw all canvases with correct physical dimensions
+    resizeAndDrawAll();
+    // Watch for size changes
+    setupResizeObserver();
 }
 
 function drawFader(canvasId, value) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const size = 101;
-    const padding = 10;
+    const size = canvas.width;
+    if (size === 0) return;
+    
+    const padding = Math.max(6, size * 0.1);
+    const trackLength = size - 2 * padding;
     
     const parts = canvasId.split('_');
     const inI = parseInt(parts[1], 10);
@@ -523,25 +560,26 @@ function drawFader(canvasId, value) {
     ctx.moveTo(padding, size - padding);
     ctx.lineTo(size - padding, padding);
     ctx.strokeStyle = '#636563';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = Math.max(1.5, size * 0.02);
     ctx.stroke();
     
     const pos = value / 127;
-    const x = padding + pos * (size - 2 * padding);
-    const y = (size - padding) - pos * (size - 2 * padding);
+    const x = padding + pos * trackLength;
+    const y = (size - padding) - pos * trackLength;
     
     ctx.beginPath();
-    ctx.arc(x, y, 6, 0, 2 * Math.PI);
+    ctx.arc(x, y, Math.max(4, size * 0.06), 0, 2 * Math.PI);
     ctx.fillStyle = isEditedLocally ? '#ff0000' : '#00ff00';
     ctx.fill();
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = Math.max(1, size * 0.02);
     ctx.stroke();
     
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 14px Arial'; 
+    ctx.font = `bold ${Math.max(10, size * 0.14)}px Arial`; 
     ctx.textBaseline = 'middle';  
-    ctx.fillText(value, size / 4, size / 4); 
+    ctx.textAlign = 'center';
+    ctx.fillText(value, size * 0.25, size * 0.25); 
 }
 
 function setupCanvasInteraction(canvas, inIdx, outIdx) {
@@ -550,8 +588,10 @@ function setupCanvasInteraction(canvas, inIdx, outIdx) {
 
     const calculateValue = (e) => {
         const rect = canvas.getBoundingClientRect();
-        const diagonalPos = ((e.clientX - rect.left - 10) + (81 - (e.clientY - rect.top - 10))) / 2;
-        let value = Math.round((diagonalPos / 81) * 127);
+        const padding = Math.max(6, rect.width * 0.1);
+        const trackLength = rect.width - 2 * padding;
+        const diagonalPos = ((e.clientX - rect.left - padding) + (trackLength - (e.clientY - rect.top - padding))) / 2;
+        let value = Math.round((diagonalPos / trackLength) * 127);
         return Math.max(0, Math.min(127, value));
     };
 
@@ -910,4 +950,5 @@ document.getElementById('btn-transmit-confirm').addEventListener('click', () => 
 });
 
 // --- INITIALIZE APPLICATION ---
+window.addEventListener('resize', resizeAndDrawAll);
 startMidi();
