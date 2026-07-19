@@ -226,6 +226,11 @@ function startMainClock() {
                     sendClearAllVCAImmediate();
                 } else if (lastCmd.type === 'preset') {
                     sendSetPresetImmediate(lastCmd.value);
+                    if (!isMonitoringActive) {
+                        setTimeout(() => {
+                            sendDisplayRequestImmediate();
+                        }, 100);
+                    }
                 }
                 pendingCommands = []; // Clean up
             }
